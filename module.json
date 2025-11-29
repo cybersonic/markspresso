@@ -1,0 +1,10 @@
+{
+  "name": "markspresso",
+  "version": "1.0.0",
+  "description": "A new LuCLI module",
+  "author": "Your Name",
+  "license": "MIT",
+  "keywords": ["lucli", "module", "cfml"],
+  "main": "Module.cfc",
+  "created": "2025-11-28T22:08:53.982400Z"
+}
