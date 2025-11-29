@@ -9,19 +9,22 @@ Markspresso is a LuCLI module that turns a directory of Markdown files into a si
 
 Markspresso is distributed as a LuCLI module. Once it is available in your LuCLI environment, you run it via the `lucli` CLI; there is nothing to install in a project.
 
+``bash
+lucli install markspresso url=https://github.com/cybersonic/markspresso.git
+
 ## Quick start
 
 From an empty or existing project directory:
 
 ```bash
 # 1. Scaffold a new Markspresso site in the current directory
-lucli markspresso create --name="My Site" --baseUrl=http://localhost:8080
+lucli markspresso create name="My Site" baseUrl=http://localhost:8080
 
 # 2. Build Markdown content into HTML under public/
-lucli markspresso build --clean
+lucli markspresso build clean
 
 # 3. (Optional) Serve the built site over HTTP
-lucli markspresso serve --port=8080
+lucli server start
 ```
 
 After running `create`, you will have:
@@ -73,7 +76,7 @@ Key fields:
 - `paths.output` – directory where built HTML is written.
 - `build.defaultLayout` – layout used when a Markdown file does not specify `layout` in front matter.
 - `build.prettyUrls` – when `true`, non-`index` pages are written as `.../slug/index.html`.
-- `build.includeDrafts` – global default for including `draft: true` content (overridden by the `--drafts` flag).
+- `build.includeDrafts` – global default for including `draft: true` content (overridden by the `drafts` flag).
 - `collections.posts` – example collection for blog posts; defines a subdirectory (`path`), default layout, and permalink pattern.
 
 If fields are missing, Markspresso applies sensible defaults in code so that a partial `markspresso.json` still works.
@@ -91,25 +94,25 @@ Prints a short description plus a summary of available subcommands.
 Scaffolds a Markspresso site in the current working directory.
 
 ```bash
-lucli markspresso create [--name="My Site"] [--baseUrl=http://localhost:8080] [--force]
+lucli markspresso create [name="My Site"] [baseUrl=http://localhost:8080] [force]
 ```
 
-- `--name` – human-readable site name used in starter content.
-- `--baseUrl` – base URL for the site.
-- `--force` – overwrite existing config and starter files if they already exist.
+- `name` – human-readable site name used in starter content.
+- `baseUrl` – base URL for the site.
+- `force` – overwrite existing config and starter files if they already exist.
 
 ### `lucli markspresso build`
 
 Builds the site by rendering Markdown under `content/` to HTML under `public/`.
 
 ```bash
-lucli markspresso build [--src=content] [--out=public] [--clean] [--drafts]
+lucli markspresso build [src=content] [out=public] [clean] [drafts]
 ```
 
-- `--src` – content directory (relative to site root). Defaults to `content` or `paths.content` in `markspresso.json`.
-- `--out` – output directory. Defaults to `public` or `paths.output`.
-- `--clean` – delete the output directory before building.
-- `--drafts` – include content marked `draft: true` in front matter.
+- `src` – content directory (relative to site root). Defaults to `content` or `paths.content` in `markspresso.json`.
+- `out` – output directory. Defaults to `public` or `paths.output`.
+- `clean` – delete the output directory before building.
+- `drafts` – include content marked `draft: true` in front matter.
 
 Notes on output paths:
 
@@ -117,30 +120,18 @@ Notes on output paths:
 - `content/blog/index.md` → `public/blog/index.html`.
 - Other files (e.g. `content/about.md`) use "pretty" URLs: `public/about/index.html`.
 
-### `lucli markspresso serve`
-
-Intended to serve the built site from `public/`.
-
-```bash
-lucli markspresso serve [--port=8080] [--watch]
-```
-
-- `--port` – HTTP port to listen on (default `8080`).
-- `--watch` – planned flag for watching the content/layouts for changes and rebuilding automatically.
-
-Implementation note: the current `serve` function is a stub; you may extend it to start an actual HTTP server and optionally watch for changes.
 
 ### `lucli markspresso new`
 
 Planned entry point for creating new content files.
 
 ```bash
-lucli markspresso new <type> [--title="My post"] [--slug=my-post]
+lucli markspresso new <type> [title="My post"] [slug=my-post]
 ```
 
 - `type` – typically `post` or `page`.
-- `--title` – human-readable title used in front matter.
-- `--slug` – URL-friendly slug; if omitted, it should be derived from the title.
+- `title` – human-readable title used in front matter.
+- `slug` – URL-friendly slug; if omitted, it should be derived from the title.
 
 The current implementation is a scaffold (comments only). To enable this command, implement the file-creation logic in `Module.cfc#new` so that it writes a Markdown file with front matter into the appropriate directory.
 
@@ -150,13 +141,13 @@ From a fresh scaffolded site:
 
 ```bash
 # Create the site structure and starter content
-lucli markspresso create --name="My Site"
+lucli markspresso create name="My Site"
 
 # Edit the home page content in your editor
 $EDITOR content/index.md
 
 # Rebuild the site (clean ensures a fresh public/ tree)
-lucli markspresso build --clean
+lucli markspresso build clean
 
 # Confirm the output exists at the expected location
 ls public/index.html
@@ -169,11 +160,11 @@ You can then open `public/index.html` in a browser or point a simple HTTP server
 Each Markdown file may start with a YAML-like front matter block:
 
 ```markdown
----
+-
 title: My page
 layout: page
 draft: false
----
+-
 
 # Heading
 
@@ -182,6 +173,6 @@ Some content.
 
 - `title` – used by the layout for the `<title>` tag and headings.
 - `layout` – name of the layout file (e.g. `page` → `layouts/page.html`). Falls back to `build.defaultLayout`.
-- `draft` – when `true`, the file is skipped unless `--drafts` or `build.includeDrafts` is enabled.
+- `draft` – when `true`, the file is skipped unless `drafts` or `build.includeDrafts` is enabled.
 
 Layouts are plain HTML files that use `{{ title }}` and `{{ content }}` placeholders; Markspresso performs a simple string replacement to inject values from front matter and the rendered HTML content.
