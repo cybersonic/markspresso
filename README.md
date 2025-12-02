@@ -1,7 +1,9 @@
      
 # markspresso
+![MarkSprsso Logo](assets/markspresso-logo.png)
 
-Brew static sites from Markdown.
+
+Brew up great static sites from Markdown.
 
 Markspresso is a LuCLI module that turns a directory of Markdown files into a simple static HTML site using minimal layouts and front matter.
 
