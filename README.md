@@ -25,13 +25,17 @@ lucli markspresso create name="My Site" baseUrl=http://localhost:8080
 # 2. Build Markdown content into HTML under public/
 lucli markspresso build clean
 
-# 3. (Optional) Serve the built site over HTTP
+# 3. Watch for changes and auto-rebuild
+lucli markspresso watch
+
+# 4. (Optional) Serve the built site over HTTP
 lucli server start
 ```
 
 After running `create`, you will have:
 
 - `markspresso.json` – site configuration.
+- `lucee.json` – LuCLI server configuration (points to `public/` webroot).
 - `content/` – Markdown source files (with starter `index.md` and `posts/hello-world.md`).
 - `layouts/` – HTML layouts (`page.html`, `post.html`).
 - `assets/` – static files copied as-is.
@@ -81,6 +85,34 @@ Key fields:
 - `build.includeDrafts` – global default for including `draft: true` content (overridden by the `drafts` flag).
 - `collections.posts` – example collection for blog posts; defines a subdirectory (`path`), default layout, and permalink pattern.
 
+### Navigation configuration
+
+Markspresso automatically generates navigation from your content directory structure. You can configure navigation behavior in `markspresso.json`:
+
+```json
+{
+  "navigation": {
+    "rootPath": "docs"
+  }
+}
+```
+
+- `navigation.rootPath` – Only include files under this path in navigation (e.g., to exclude blog posts from the navigation tree).
+
+Markspresso uses a numeric prefix convention to control ordering:
+
+```
+content/
+  010_getting-started/
+    010_introduction.md
+    020_installation.md
+  020_guides/
+    010_basic-usage.md
+    020_advanced-features.md
+```
+
+Files are ordered by their numeric prefix, and titles are automatically derived by removing the prefix and converting hyphens/underscores to title case. For complete details on organizing content for navigation, see [docs/navigation.md](docs/navigation.md).
+
 If fields are missing, Markspresso applies sensible defaults in code so that a partial `markspresso.json` still works.
 
 ## CLI Reference
@@ -121,6 +153,18 @@ Notes on output paths:
 - `content/index.md` → `public/index.html`.
 - `content/blog/index.md` → `public/blog/index.html`.
 - Other files (e.g. `content/about.md`) use "pretty" URLs: `public/about/index.html`.
+
+### `lucli markspresso watch`
+
+Watches for changes to content and layout files and automatically rebuilds the site.
+
+```bash
+lucli markspresso watch [numberOfSeconds=1]
+```
+
+- `numberOfSeconds` – interval in seconds to check for file changes (default is 1 second).
+
+This command monitors your `content/`, `layouts/`, and `assets/` directories and automatically runs a rebuild whenever changes are detected. Perfect for development workflows.
 
 
 ### `lucli markspresso new`
@@ -178,3 +222,35 @@ Some content.
 - `draft` – when `true`, the file is skipped unless `drafts` or `build.includeDrafts` is enabled.
 
 Layouts are plain HTML files that use `{{ title }}` and `{{ content }}` placeholders; Markspresso performs a simple string replacement to inject values from front matter and the rendered HTML content.
+
+## Organizing blog posts
+
+Blog posts are typically organized in a `posts/` subdirectory under `content/`. Unlike documentation pages that use numeric prefixes for navigation ordering, blog posts are usually date-based:
+
+```
+content/
+  posts/
+    2024-01-15-hello-world.md
+    2024-02-20-announcing-version-2.md
+    2024-03-10-tips-and-tricks.md
+```
+
+Each post should include front matter with at least:
+
+```markdown
+---
+title: Hello, World
+layout: post
+draft: false
+date: 2024-01-15
+---
+
+Your post content here.
+```
+
+- `title` – the post title displayed on the page and in listings.
+- `layout` – typically `post` to use the post layout template.
+- `draft` – set to `true` to exclude from builds (unless `--drafts` flag is used).
+- `date` – publication date (optional but useful for sorting).
+
+Blog posts are part of the `collections.posts` configuration and use the `posts` collection layout and permalink pattern defined in `markspresso.json`.
