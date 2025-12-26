@@ -169,17 +169,26 @@ This command monitors your `content/`, `layouts/`, and `assets/` directories and
 
 ### `lucli markspresso new`
 
-Planned entry point for creating new content files.
+Creates new content files with front matter.
 
 ```bash
-lucli markspresso new <type> [title="My post"] [slug=my-post]
+lucli markspresso new type=posts title="My Post Title"
+lucli markspresso new type=page title="About Us" slug=about
 ```
 
-- `type` – typically `post` or `page`.
-- `title` – human-readable title used in front matter.
-- `slug` – URL-friendly slug; if omitted, it should be derived from the title.
+- `type` – content type, typically `posts` for blog posts or `page` for pages. Must match a collection name in `markspresso.json` or be a generic type.
+- `title` – human-readable title used in front matter and to generate the slug.
+- `slug` – URL-friendly slug; if omitted, automatically generated from the title.
 
-The current implementation is a scaffold (comments only). To enable this command, implement the file-creation logic in `Module.cfc#new` so that it writes a Markdown file with front matter into the appropriate directory.
+**Posts** are created with:
+- Date-prefixed filename: `YYYY-MM-DD-slug.md`
+- Front matter including `date` and `draft: true`
+- Placed in `content/posts/` directory
+
+**Pages** are created with:
+- Simple filename: `slug.md`
+- Basic front matter with title and layout
+- Placed in `content/` directory
 
 ## Example workflow
 

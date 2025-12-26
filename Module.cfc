@@ -125,7 +125,7 @@ component extends="modules.BaseModule" {
      * lucli markspresso new page about
      */
     function new(
-        string type,
+        string type = "",
         string title = "",
         string slug = ""
     ) {

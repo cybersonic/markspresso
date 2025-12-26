@@ -328,8 +328,8 @@ component {
             var effectiveMeta = duplicate(doc.meta);
 
             // Inject latest posts for index page
-            if (lcase(doc.relPath) == "index.md" and arrayLen(postsCollection)) {
-                effectiveMeta.latest_posts = renderLatestPostsHtml(postsCollection, 5);
+            if (lcase(doc.relPath) == "index.md") {
+                effectiveMeta.latest_posts = arrayLen(postsCollection) ? renderLatestPostsHtml(postsCollection, 5) : "";
             }
 
             // Inject navigation HTML
@@ -438,11 +438,92 @@ component {
     }
 
     /**
-     * Create new content (placeholder for future implementation).
+     * Create new content (post, page, or other collection type).
      */
-    public void function newContent(string type, string title = "", string slug = "") {
-        // TODO: Implement content creation
-        out("Creating new " & type & " is not yet implemented.");
+    public void function newContent(string type = "", string title = "", string slug = "") {
+        if (!len(type)) {
+            out("Error: content type is required (e.g., 'post' or 'page')");
+            return;
+        }
+        
+        var rootDir = siteRoot();
+        var config  = variables.configService.load(rootDir);
+        var contentDir = rootDir & "/" & config.paths.content;
+        
+        // Determine collection config
+        var collectionConfig = {};
+        var targetDir = contentDir;
+        var layout = config.build.defaultLayout;
+        
+        if (structKeyExists(config.collections, type)) {
+            collectionConfig = config.collections[type];
+            if (structKeyExists(collectionConfig, "path") and len(collectionConfig.path)) {
+                targetDir = contentDir & "/" & collectionConfig.path;
+            }
+            if (structKeyExists(collectionConfig, "layout") and len(collectionConfig.layout)) {
+                layout = collectionConfig.layout;
+            }
+        }
+        
+        // Generate slug from title if not provided
+        if (!len(slug) and len(title)) {
+            slug = lcase(trim(title));
+            // Replace spaces and special chars with dashes
+            slug = reReplace(slug, "[^a-z0-9]+", "-", "all");
+            // Remove leading/trailing dashes
+            slug = reReplace(slug, "^-+|-+$", "", "all");
+        }
+        
+        if (!len(slug)) {
+            out("Error: title or slug is required");
+            return;
+        }
+        
+        // For posts, use date prefix in filename
+        var filename = slug & ".md";
+        if (type == "posts") {
+            var now = now();
+            var datePart = dateFormat(now, "yyyy-mm-dd");
+            filename = datePart & "-" & slug & ".md";
+        }
+        
+        var filePath = targetDir & "/" & filename;
+        
+        if (fileExists(filePath)) {
+            out("Error: file already exists at " & filePath);
+            return;
+        }
+        
+        // Ensure target directory exists
+        variables.fileService.ensureDir(targetDir);
+        
+        // Build front matter
+        var frontMatter = "---" & chr(10);
+        if (len(title)) {
+            frontMatter &= "title: " & title & chr(10);
+        }
+        frontMatter &= "layout: " & layout & chr(10);
+        
+        if (type == "posts") {
+            var now = now();
+            frontMatter &= "date: " & dateFormat(now, "yyyy-mm-dd") & chr(10);
+            frontMatter &= "draft: true" & chr(10);
+        }
+        
+        frontMatter &= "---" & chr(10) & chr(10);
+        
+        // Add starter content
+        var content = frontMatter;
+        if (len(title)) {
+            content &= "Write your content here for " & title & "." & chr(10);
+        } else {
+            content &= "Write your content here." & chr(10);
+        }
+        
+        // Write the file
+        fileWrite(filePath, content, "UTF-8");
+        
+        out("Created " & type & ": " & filePath);
     }
 
     // --- Private Helper Functions ---
@@ -523,7 +604,7 @@ component {
             return result;
         }
 
-        var slugStart = len(year) + 1 + len(month) + 1 + len(day) + 1;
+        var slugStart = len(year) + 1 + len(month) + 1 + len(day) + 1 + 1;
         if (slugStart GT len(filenamePart)) {
             return result;
         }
@@ -679,14 +760,14 @@ component {
         var limit = min(maxCount, arrayLen(posts));
         for (var i = 1; i <= limit; i++) {
             var p = posts[i];
-            var title = structKeyExists(p, 'title') ? p.title : '';
-            var url   = structKeyExists(p, 'url')   ? p.url   : '';
+            var postTitle = structKeyExists(p, "title") ? p["title"] : "";
+            var postUrl   = structKeyExists(p, "url") ? p["url"] : "";
 
-            if (!len(url)) {
+            if (!len(postUrl)) {
                 continue;
             }
 
-            html &= '<li><a href="' & htmlEditFormat(url) & '">' & htmlEditFormat(title) & '</a></li>';
+            html &= '<li><a href="' & htmlEditFormat(postUrl) & '">' & htmlEditFormat(postTitle) & '</a></li>';
         }
 
         html &= '</ul>';
