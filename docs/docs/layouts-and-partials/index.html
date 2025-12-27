@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Getting started · Markspresso Docs</title>
+    <title>Layouts and partials · Markspresso Docs</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
       :root {
@@ -375,7 +375,7 @@
             </div>
             <div class="logo-text">
               <div class="logo-title">Markspresso</div>
-              <div class="logo-subtitle">Static docs brewed from Markdown</div>
+              <div class="logo-subtitle">Static sites brewed from Markdown</div>
             </div>
           </a>
           <nav class="header-nav">
@@ -393,15 +393,13 @@
             <h2 class="sidebar-title">Documentation</h2>
             <nav class="docs-nav">
   <ul>
-  <li><a href="/docs/">Documentation</a></li>
-  <li><a href="/navigation/">Navigation</a></li>
     <li>
       <strong>Docs</strong>
       <ul>
-    <li class="active"><a href="/docs/getting-started/">Getting started</a></li>
+    <li><a href="/docs/getting-started/">Getting started</a></li>
     <li><a href="/docs/site-structure-and-config/">Site structure and configuration</a></li>
     <li><a href="/docs/content-and-front-matter/">Content and front matter</a></li>
-    <li><a href="/docs/layouts-and-partials/">Layouts and partials</a></li>
+    <li class="active"><a href="/docs/layouts-and-partials/">Layouts and partials</a></li>
     <li><a href="/docs/navigation/">Navigation</a></li>
     <li><a href="/docs/posts-and-pages/">Posts and pages</a></li>
       </ul>
@@ -414,97 +412,129 @@
 
         <main class="main-card">
           <div class="content-header">
-            <h1 class="content-title">Getting started</h1>
+            <h1 class="content-title">Layouts and partials</h1>
             
           </div>
           <div class="content-body">
-            <h2>Getting started with Markspresso</h2>
-<p>This guide shows how to scaffold a new site, run a build, and iterate on your content.</p>
-<h3>Prerequisites</h3>
-<ul>
-<li>LuCLI installed and on your <code>PATH</code>.</li>
-<li>A directory where you want your static site to live (your &quot;site root&quot;).</li>
-</ul>
-<p>From your site root, you will run commands via LuCLI:</p>
-<pre><code class="language-bash">lucli markspresso --help
+            <h2>Layouts and partials</h2>
+<p>Layouts control the HTML skeleton for your pages. They live under the <code>layouts/</code> directory.</p>
+<h3>Basic layout structure</h3>
+<p>The <code>create</code> command scaffolds <code>layouts/page.html</code> and <code>layouts/post.html</code>. A simplified layout looks like this:</p>
+<pre><code class="language-html">&lt;!doctype html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;meta charset=&quot;utf-8&quot;&gt;
+    &lt;title&gt;Layouts and partials&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    {{ include &quot;partials/header.html&quot; }}
+    &lt;main&gt;
+      {{ content }}
+    &lt;/main&gt;
+    {{ include &quot;partials/footer.html&quot; }}
+  &lt;/body&gt;
+&lt;/html&gt;
 </code></pre>
-<h3>1. Scaffold a new site</h3>
-<p>From an empty directory:</p>
-<pre><code class="language-bash">lucli markspresso create --name &quot;My Site&quot; --baseUrl &quot;http://localhost:8080&quot;
+<p>Key ideas:</p>
+<ul>
+<li><code>Layouts and partials</code> comes from front matter</li>
+<li><code>{{ content }}</code> is the rendered Markdown body</li>
+<li><code><nav class="docs-nav">
+  <ul>
+    <li>
+      <strong>Docs</strong>
+      <ul>
+    <li><a href="/docs/getting-started/">Getting started</a></li>
+    <li><a href="/docs/site-structure-and-config/">Site structure and configuration</a></li>
+    <li><a href="/docs/content-and-front-matter/">Content and front matter</a></li>
+    <li class="active"><a href="/docs/layouts-and-partials/">Layouts and partials</a></li>
+    <li><a href="/docs/navigation/">Navigation</a></li>
+    <li><a href="/docs/posts-and-pages/">Posts and pages</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+</code> (when present) is generated HTML for the sidebar navigation</li>
+<li><code>{{ latest_posts }}</code> is injected on the home page if you use it in <code>content/index.md</code></li>
+</ul>
+<h3>Token replacement</h3>
+<p>Any key in a document's front matter is available to layouts as a token:</p>
+<ul>
+<li><code>{{ key }}</code></li>
+<li><code>{{key}}</code> (no spaces)</li>
+</ul>
+<p>For example, given:</p>
+<pre><code class="language-markdown">---
+title: Landing
+layout: page
+cta_label: Get started
+---
+
+Welcome!
 </code></pre>
-<p>This will create:</p>
-<ul>
-<li><code>markspresso.json</code> – site configuration</li>
-<li><code>content/</code> – Markdown content (including <code>index.md</code> and <code>posts/hello-world.md</code>)</li>
-<li><code>layouts/</code> – HTML layouts (<code>page.html</code>, <code>post.html</code>) and <code>layouts/partials/</code></li>
-<li><code>assets/</code> – static files to be copied as-is</li>
-<li><code>public/</code> – build output directory (initially empty)</li>
-<li><code>lucee.json</code> – convenience config for serving the <code>public/</code> directory from LuCLI</li>
-</ul>
-<p>You can re-run <code>create</code> with <code>--force</code> to overwrite existing starter files.</p>
-<h3>2. Build Markdown into HTML</h3>
-<p>From the same directory:</p>
-<pre><code class="language-bash">lucli markspresso build
+<p>You can use <code>{{ cta_label }}</code> inside <code>page.html</code>.</p>
+<h3>Including partials</h3>
+<p>To reuse markup (headers, footers, sidebars), put HTML files under <code>layouts/partials/</code> and include them with:</p>
+<pre><code class="language-html">{{ include &quot;partials/header.html&quot; }}
 </code></pre>
-<p>By default this will:</p>
+<p>Rules:</p>
 <ul>
-<li>Read <code>markspresso.json</code> and apply sensible defaults</li>
-<li>Treat <code>content/</code> as your source and <code>public/</code> as your output</li>
-<li>Render all <code>*.md</code> files to HTML using the configured layouts</li>
-<li>Copy any files under <code>assets/</code> into <code>public/</code></li>
+<li>Paths are resolved relative to the <code>layouts/</code> directory</li>
+<li>Nested includes are supported: partials can include other partials</li>
+<li>Unsafe paths using <code>..</code> segments are ignored for safety</li>
 </ul>
-<p>Useful flags:</p>
+<p>The <code>create</code> command seeds two partials:</p>
 <ul>
-<li><code>--src=content</code> – override the content directory</li>
-<li><code>--out=public</code> – override the output directory</li>
-<li><code>--clean</code> – delete the output directory before building</li>
-<li><code>--drafts</code> – include content marked as <code>draft: true</code> in front matter</li>
+<li><code>layouts/partials/header.html</code></li>
+<li><code>layouts/partials/footer.html</code></li>
 </ul>
-<h3>3. Serve the built site</h3>
-<p>Markspresso builds a static site into <code>public/</code>. You can serve it with any static HTTP server you like.</p>
-<p>Because <code>create</code> also writes a <code>lucee.json</code> that points at the output directory, you can use LuCLI's own tooling or your preferred static server to host <code>public/</code>.</p>
-<h3>4. Watch for changes</h3>
-<p>For an efficient local workflow, use the watch command from your site root:</p>
-<pre><code class="language-bash">lucli markspresso watch
+<p>Feel free to customize them.</p>
+<h3>Conditional blocks</h3>
+<p>Layouts support a simple conditional syntax:</p>
+<pre><code class="language-html">{{#if featured}}
+  &lt;div class=&quot;badge&quot;&gt;Featured&lt;/div&gt;
+{{/if}}
 </code></pre>
-<p>Markspresso will:</p>
+<p>You can also specify an <code>else</code> branch:</p>
+<pre><code class="language-html">{{#if loggedIn}}
+  &lt;a href=&quot;/account/&quot;&gt;My account&lt;/a&gt;
+{{else}}
+  &lt;a href=&quot;/login/&quot;&gt;Log in&lt;/a&gt;
+{{/if}}
+</code></pre>
+<p>The condition key (<code>featured</code>, <code>loggedIn</code>) is looked up from the data available to the template (front matter plus injected fields like <code>content</code>, <code>navigation</code>, <code>latest_posts</code>).</p>
+<p><strong>Truthiness rules</strong>:</p>
 <ul>
-<li>Run an initial full build</li>
-<li>Watch <code>content/</code>, <code>layouts/</code>, and <code>assets/</code></li>
-<li>On content changes, trigger incremental rebuilds of the changed files (plus home page when needed)</li>
-<li>On layout changes, trigger a full rebuild</li>
-<li>On asset changes, copy changed assets to <code>public/</code></li>
+<li><code>false</code>, <code>0</code>, empty strings, empty arrays, empty structs, and <code>null</code> are treated as false</li>
+<li>Everything else is true</li>
 </ul>
-<h3>5. Next steps</h3>
-<p>Once you have your first build working, continue with:</p>
+<h3>Layout selection</h3>
+<p>For each document, Markspresso chooses a layout as follows:</p>
+<ol>
+<li>If front matter specifies <code>layout</code>, use that.</li>
+<li>Else, if the document belongs to a collection with a <code>layout</code> configured, use that.</li>
+<li>Otherwise, fall back to <code>build.defaultLayout</code> from <code>markspresso.json</code> (typically <code>page</code>).</li>
+</ol>
+<p>This means you can:</p>
 <ul>
-<li><strong>Site structure &amp; configuration</strong> – how <code>markspresso.json</code> controls paths and collections</li>
-<li><strong>Content &amp; front matter</strong> – how to attach metadata to documents</li>
-<li><strong>Layouts &amp; partials</strong> – customizing HTML output</li>
-<li><strong>Posts &amp; pages</strong> – using Markspresso as a lightweight blog engine</li>
+<li>Use <code>layout: page</code> for regular pages</li>
+<li>Use <code>layout: post</code> for blog posts</li>
+<li>Define additional layouts (e.g. <code>docs.html</code>) and opt into them per page or per collection.</li>
 </ul>
 
           </div>
         </main>
 
-        <aside class="toc-sidebar">
-          <div class="toc-inner">
-            <h2 class="toc-title">On this page</h2>
-            <ul class="toc-list">
-              <!-- optional ToC populated by JS or static includes -->
-            </ul>
-          </div>
-        </aside>
+        
       </div>
 
       <footer class="footer">
-        <div class="footer-inner">
-          <span>Markspresso · brewed with LuCLI &amp; CFML</span>
-          <div class="footer-links">
-            <a href="https://github.com/cybersonic/markspresso" class="footer-link" target="_blank">GitHub</a>
-          </div>
-        </div>
-      </footer>
+  <div class="footer-inner">
+    <span>Markspresso &copy; 2025 <a href="https://github.com/cybersonic/" class="footer-link" target="_blank">Mark Drew</a> · ☕️ brewed with ❤️, <a href="https://github.com/cybersonic/lucli" class="footer-link" target="_blank">LuCLI</a> &amp; <a href="https://lucee.org" class="footer-link" target="_blank">Lucee</a></span>
+    <span><a href="https://github.com/cybersonic/markspresso" class="footer-link" target="_blank">View on GitHub</a></span>
+  </div>
+</footer>
+
     </div>
     <script>
       (function() {

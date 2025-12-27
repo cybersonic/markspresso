@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Documentation · Markspresso Docs</title>
+    <title>Markspresso documentation · Markspresso Docs</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
       :root {
@@ -375,7 +375,7 @@
             </div>
             <div class="logo-text">
               <div class="logo-title">Markspresso</div>
-              <div class="logo-subtitle">Static docs brewed from Markdown</div>
+              <div class="logo-subtitle">Static sites brewed from Markdown</div>
             </div>
           </a>
           <nav class="header-nav">
@@ -393,8 +393,6 @@
             <h2 class="sidebar-title">Documentation</h2>
             <nav class="docs-nav">
   <ul>
-  <li class="active"><a href="/docs/">Documentation</a></li>
-  <li><a href="/navigation/">Navigation</a></li>
     <li>
       <strong>Docs</strong>
       <ul>
@@ -414,44 +412,45 @@
 
         <main class="main-card">
           <div class="content-header">
-            <h1 class="content-title">Documentation</h1>
+            <h1 class="content-title">Markspresso documentation</h1>
             
           </div>
           <div class="content-body">
-            <h1>Documentation</h1>
-<p>This site documents how to install, configure, and use Markspresso.</p>
-<h2>Getting started</h2>
-<p>See the home page for a quick install and setup guide. Once you have a site scaffolded, you can organize your documentation using Markspresso's navigation system.</p>
-<h2>Navigation overview</h2>
-<p>Markspresso automatically generates navigation from your content directory structure using a numeric prefix convention.</p>
+            <h2>Markspresso</h2>
+<p>Markspresso is a LuCLI module that brews static HTML sites from Markdown content.</p>
+<p>This documentation walks you through:</p>
 <ul>
-<li>Use zero-padded numeric prefixes on files and folders to control ordering (e.g. <code>010_</code>, <code>020_</code>).</li>
-<li>Keep your docs in a shallow hierarchy (typically two levels).</li>
-<li>Derive readable titles from filenames, or override with front matter <code>title:</code>.</li>
+<li>Creating a new site</li>
+<li>Understanding the generated structure and configuration</li>
+<li>Writing content with front matter</li>
+<li>Designing layouts and partials</li>
+<li>Building navigation</li>
+<li>Creating posts and pages</li>
+<li>Running builds and watching for changes</li>
 </ul>
-<p>For details, see the &quot;Navigation&quot; page in this site.</p>
+<h3>Where to start</h3>
+<ul>
+<li><strong>Getting started</strong> – prerequisites, installing and running your first build: <a href="./docs/010_getting-started.md">/docs/010_getting-started/</a></li>
+<li><strong>Site structure &amp; configuration</strong> – how <code>markspresso.json</code> controls paths and collections: <a href="./docs/020_site-structure-and-config.md">/docs/020_site-structure-and-config/</a></li>
+<li><strong>Content &amp; front matter</strong> – how Markspresso reads metadata: <a href="./docs/030_content-and-front-matter.md">/docs/030_content-and-front-matter/</a></li>
+<li><strong>Layouts &amp; partials</strong> – customizing HTML output: <a href="./docs/040_layouts-and-partials.md">/docs/040_layouts-and-partials/</a></li>
+<li><strong>Navigation</strong> – sidebar navigation driven by filenames: <a href="./docs/050_navigation.md">/docs/050_navigation/</a></li>
+<li><strong>Posts &amp; pages</strong> – working with collections and the <code>new</code> command: <a href="./docs/060_posts-and-pages.md">/docs/060_posts-and-pages/</a></li>
+</ul>
 
           </div>
         </main>
 
-        <aside class="toc-sidebar">
-          <div class="toc-inner">
-            <h2 class="toc-title">On this page</h2>
-            <ul class="toc-list">
-              <!-- optional ToC populated by JS or static includes -->
-            </ul>
-          </div>
-        </aside>
+        
       </div>
 
       <footer class="footer">
-        <div class="footer-inner">
-          <span>Markspresso · brewed with LuCLI &amp; CFML</span>
-          <div class="footer-links">
-            <a href="https://github.com/cybersonic/markspresso" class="footer-link" target="_blank">GitHub</a>
-          </div>
-        </div>
-      </footer>
+  <div class="footer-inner">
+    <span>Markspresso &copy; 2025 <a href="https://github.com/cybersonic/" class="footer-link" target="_blank">Mark Drew</a> · ☕️ brewed with ❤️, <a href="https://github.com/cybersonic/lucli" class="footer-link" target="_blank">LuCLI</a> &amp; <a href="https://lucee.org" class="footer-link" target="_blank">Lucee</a></span>
+    <span><a href="https://github.com/cybersonic/markspresso" class="footer-link" target="_blank">View on GitHub</a></span>
+  </div>
+</footer>
+
     </div>
     <script>
       (function() {

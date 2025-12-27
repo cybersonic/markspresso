@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Site structure and configuration · Markspresso Docs</title>
+    <title>Content and front matter · Markspresso Docs</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
       :root {
@@ -375,7 +375,7 @@
             </div>
             <div class="logo-text">
               <div class="logo-title">Markspresso</div>
-              <div class="logo-subtitle">Static docs brewed from Markdown</div>
+              <div class="logo-subtitle">Static sites brewed from Markdown</div>
             </div>
           </a>
           <nav class="header-nav">
@@ -393,14 +393,12 @@
             <h2 class="sidebar-title">Documentation</h2>
             <nav class="docs-nav">
   <ul>
-  <li><a href="/docs/">Documentation</a></li>
-  <li><a href="/navigation/">Navigation</a></li>
     <li>
       <strong>Docs</strong>
       <ul>
     <li><a href="/docs/getting-started/">Getting started</a></li>
-    <li class="active"><a href="/docs/site-structure-and-config/">Site structure and configuration</a></li>
-    <li><a href="/docs/content-and-front-matter/">Content and front matter</a></li>
+    <li><a href="/docs/site-structure-and-config/">Site structure and configuration</a></li>
+    <li class="active"><a href="/docs/content-and-front-matter/">Content and front matter</a></li>
     <li><a href="/docs/layouts-and-partials/">Layouts and partials</a></li>
     <li><a href="/docs/navigation/">Navigation</a></li>
     <li><a href="/docs/posts-and-pages/">Posts and pages</a></li>
@@ -414,120 +412,120 @@
 
         <main class="main-card">
           <div class="content-header">
-            <h1 class="content-title">Site structure and configuration</h1>
+            <h1 class="content-title">Content and front matter</h1>
             
           </div>
           <div class="content-body">
-            <h2>Site structure and configuration</h2>
-<p>Markspresso expects a simple, conventional directory layout. You can customize it via <code>markspresso.json</code>.</p>
-<h3>Default layout</h3>
-<p>When you run <code>lucli markspresso create</code>, your site root is populated with:</p>
+            <h2>Content and front matter</h2>
+<p>Markspresso turns Markdown (<code>.md</code>) files into HTML pages. Each file can include a front matter block at the top with key–value metadata.</p>
+<h3>Basic example</h3>
+<pre><code class="language-markdown">---
+title: About this site
+layout: page
+---
+
+# About
+
+This text is written in Markdown and rendered to HTML.
+</code></pre>
+<p>Front matter is optional; if omitted, Markspresso uses sensible defaults.</p>
+<h3>Front matter format</h3>
+<p>Front matter is a simple, YAML-like block at the very start of the file:</p>
 <ul>
-<li><code>markspresso.json</code> – main configuration file</li>
-<li><code>content/</code> – Markdown content
+<li>Starts with <code>---</code> on its own line</li>
+<li>Contains one <code>key: value</code> pair per line</li>
+<li>Ends with another <code>---</code> line</li>
+</ul>
+<p>Comments starting with <code>##</code> are ignored inside front matter.</p>
+<pre><code class="language-markdown">---
+## This is a comment and will be ignored
+title: My Page
+layout: page
+---
+
+Page content here.
+</code></pre>
+<h3>Supported field types</h3>
+<p>Markspresso does some basic type coercion for values:</p>
 <ul>
-<li><code>index.md</code> – home page</li>
-<li><code>posts/hello-world.md</code> – starter post</li>
+<li><code>true</code> / <code>false</code> → booleans</li>
+<li>Numeric values (e.g. <code>42</code>, <code>3.14</code>) → numbers</li>
+<li>Everything else → strings</li>
+</ul>
+<p>This means you can safely write:</p>
+<pre><code class="language-markdown">---
+order: 10
+featured: true
+label: Docs
+---
+</code></pre>
+<h3>Common front matter fields</h3>
+<p>These fields are commonly used throughout the system:</p>
+<ul>
+<li><code>title</code> – human-readable page title; also used by navigation and <code>&lt;title&gt;</code> tags</li>
+<li><code>layout</code> – which layout template to use (e.g. <code>page</code>, <code>post</code>)</li>
+<li><code>draft</code> – if <code>true</code>, this file is skipped unless you pass <code>--drafts</code> or enable <code>includeDrafts</code></li>
+<li><code>date</code> – optional ISO date string for posts (e.g. <code>2025-01-15</code>)</li>
+<li><code>permalink</code> – optional URL to prefer as the canonical URL for this page</li>
+<li><code>nav_hidden</code> – if <code>true</code>, hide this page from navigation</li>
+</ul>
+<p>You can also invent your own keys; anything in front matter is available to layouts as <code>{{ key }}</code>.</p>
+<h3>Draft content</h3>
+<p>If you set <code>draft: true</code> in front matter, Markspresso will:</p>
+<ul>
+<li>Skip the document by default</li>
+<li>Include it when:
+<ul>
+<li><code>markspresso.json</code> has <code>&quot;includeDrafts&quot;: true</code> <strong>or</strong></li>
+<li>You pass <code>--drafts</code> to the <code>build</code> command</li>
 </ul>
 </li>
-<li><code>layouts/</code> – HTML layout templates
-<ul>
-<li><code>page.html</code> – default page layout</li>
-<li><code>post.html</code> – default post layout</li>
-<li><code>partials/</code> – shared partial templates for header, footer, etc.</li>
 </ul>
-</li>
-<li><code>assets/</code> – static files (CSS, images, JS) copied as-is into the build output</li>
-<li><code>public/</code> – output directory for generated HTML</li>
-</ul>
-<p>You can move these around by editing <code>markspresso.json</code>.</p>
-<h3><code>markspresso.json</code> schema</h3>
-<p>A minimal config looks like this:</p>
-<pre><code class="language-json">{
-  &quot;name&quot;: &quot;My Site&quot;,
-  &quot;baseUrl&quot;: &quot;http://localhost:8080&quot;,
-  &quot;paths&quot;: {
-    &quot;content&quot;: &quot;content&quot;,
-    &quot;layouts&quot;: &quot;layouts&quot;,
-    &quot;assets&quot;: &quot;assets&quot;,
-    &quot;output&quot;: &quot;public&quot;
-  },
-  &quot;build&quot;: {
-    &quot;defaultLayout&quot;: &quot;page&quot;,
-    &quot;prettyUrls&quot;: true,
-    &quot;includeDrafts&quot;: false,
-    &quot;latestPostsCount&quot;: 5
-  },
-  &quot;collections&quot;: {
-    &quot;posts&quot;: {
-      &quot;path&quot;: &quot;posts&quot;,
-      &quot;layout&quot;: &quot;post&quot;,
-      &quot;permalink&quot;: &quot;/posts/:slug/&quot;
-    }
-  }
-}
+<p>This is useful for work-in-progress posts and pages.</p>
+<h3>Per-page permalinks</h3>
+<p>You can override a page's canonical URL using a <code>permalink</code> field:</p>
+<pre><code class="language-markdown">---
+title: Contact
+layout: page
+permalink: /contact/
+---
+
+Contact details here.
 </code></pre>
-<h4><code>paths</code></h4>
+<p>This will:</p>
 <ul>
-<li><code>content</code> – where Markspresso looks for Markdown files</li>
-<li><code>layouts</code> – where it looks for layout templates</li>
-<li><code>assets</code> – copied recursively into the output directory</li>
-<li><code>output</code> – where generated HTML is written</li>
+<li>Use <code>/contact/</code> as the canonical URL in navigation</li>
+<li>Still write the physical HTML file into the output directory under a computed path (e.g. <code>public/contact/index.html</code>)</li>
 </ul>
-<h4><code>build</code></h4>
-<ul>
-<li><code>defaultLayout</code> – name of the layout used when a document does not specify <code>layout</code> in front matter</li>
-<li><code>prettyUrls</code> – if <code>true</code>, non-index pages are written to <code>path/to/page/index.html</code> instead of <code>path/to/page.html</code></li>
-<li><code>includeDrafts</code> – if <code>true</code>, include <code>draft: true</code> docs even without the <code>--drafts</code> flag</li>
-<li><code>latestPostsCount</code> – how many latest posts to inject into the home page as <code>{{ latest_posts }}</code></li>
-</ul>
-<h4><code>collections</code></h4>
-<p>Collections group related content under a subdirectory and layout.</p>
-<p>Each collection entry has:</p>
-<ul>
-<li><code>path</code> – subdirectory under <code>content/</code></li>
-<li><code>layout</code> – layout name to use by default</li>
-<li><code>permalink</code> – pattern for canonical URLs; <code>:slug</code> is replaced with the document slug</li>
-</ul>
-<p>The default <code>posts</code> collection maps to <code>content/posts/</code> and uses the <code>post</code> layout.</p>
-<h3>Optional navigation config</h3>
-<p>If you want your navigation to only include a subset of content (for example, everything under <code>content/docs</code>), you can add a <code>navigation</code> block:</p>
-<pre><code class="language-json">{
-  &quot;navigation&quot;: {
-    &quot;rootPath&quot;: &quot;docs&quot;
-  }
-}
+<h3>Arbitrary metadata</h3>
+<p>Any key you add to front matter becomes available in templates. For example:</p>
+<pre><code class="language-markdown">---
+title: Pricing
+layout: page
+plan: Pro
+price: 19
+showCTA: true
+---
+
+# Pricing
+
+Content here.
 </code></pre>
-<p>When <code>rootPath</code> is set, navigation will only be built from documents whose relative paths start with <code>docs/</code>.</p>
-<h3>Overriding paths with CLI flags</h3>
-<p>CLI flags can temporarily override configuration values:</p>
-<ul>
-<li><code>lucli markspresso build --src=docs</code> – treat <code>docs/</code> as the content root</li>
-<li><code>lucli markspresso build --out=dist</code> – write HTML into <code>dist/</code></li>
-</ul>
-<p>These do not modify <code>markspresso.json</code>; they just affect the current build.</p>
+<p>In a layout you can reference these values using <code>{{ plan }}</code>, <code>{{ price }}</code>, and <code>{{ showCTA }}</code>.</p>
 
           </div>
         </main>
 
-        <aside class="toc-sidebar">
-          <div class="toc-inner">
-            <h2 class="toc-title">On this page</h2>
-            <ul class="toc-list">
-              <!-- optional ToC populated by JS or static includes -->
-            </ul>
-          </div>
-        </aside>
+        
       </div>
 
       <footer class="footer">
-        <div class="footer-inner">
-          <span>Markspresso · brewed with LuCLI &amp; CFML</span>
-          <div class="footer-links">
-            <a href="https://github.com/cybersonic/markspresso" class="footer-link" target="_blank">GitHub</a>
-          </div>
-        </div>
-      </footer>
+  <div class="footer-inner">
+    <span>Markspresso &copy; 2025 <a href="https://github.com/cybersonic/" class="footer-link" target="_blank">Mark Drew</a> · ☕️ brewed with ❤️, <a href="https://github.com/cybersonic/lucli" class="footer-link" target="_blank">LuCLI</a> &amp; <a href="https://lucee.org" class="footer-link" target="_blank">Lucee</a></span>
+    <span><a href="https://github.com/cybersonic/markspresso" class="footer-link" target="_blank">View on GitHub</a></span>
+  </div>
+</footer>
+
     </div>
     <script>
       (function() {

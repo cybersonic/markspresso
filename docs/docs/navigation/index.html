@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Layouts and partials · Markspresso Docs</title>
+    <title>Navigation · Markspresso Docs</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
       :root {
@@ -375,7 +375,7 @@
             </div>
             <div class="logo-text">
               <div class="logo-title">Markspresso</div>
-              <div class="logo-subtitle">Static docs brewed from Markdown</div>
+              <div class="logo-subtitle">Static sites brewed from Markdown</div>
             </div>
           </a>
           <nav class="header-nav">
@@ -393,16 +393,14 @@
             <h2 class="sidebar-title">Documentation</h2>
             <nav class="docs-nav">
   <ul>
-  <li><a href="/docs/">Documentation</a></li>
-  <li><a href="/navigation/">Navigation</a></li>
     <li>
       <strong>Docs</strong>
       <ul>
     <li><a href="/docs/getting-started/">Getting started</a></li>
     <li><a href="/docs/site-structure-and-config/">Site structure and configuration</a></li>
     <li><a href="/docs/content-and-front-matter/">Content and front matter</a></li>
-    <li class="active"><a href="/docs/layouts-and-partials/">Layouts and partials</a></li>
-    <li><a href="/docs/navigation/">Navigation</a></li>
+    <li><a href="/docs/layouts-and-partials/">Layouts and partials</a></li>
+    <li class="active"><a href="/docs/navigation/">Navigation</a></li>
     <li><a href="/docs/posts-and-pages/">Posts and pages</a></li>
       </ul>
     </li>
@@ -414,139 +412,85 @@
 
         <main class="main-card">
           <div class="content-header">
-            <h1 class="content-title">Layouts and partials</h1>
+            <h1 class="content-title">Navigation</h1>
             
           </div>
           <div class="content-body">
-            <h2>Layouts and partials</h2>
-<p>Layouts control the HTML skeleton for your pages. They live under the <code>layouts/</code> directory.</p>
-<h3>Basic layout structure</h3>
-<p>The <code>create</code> command scaffolds <code>layouts/page.html</code> and <code>layouts/post.html</code>. A simplified layout looks like this:</p>
-<pre><code class="language-html">&lt;!doctype html&gt;
-&lt;html&gt;
-  &lt;head&gt;
-    &lt;meta charset=&quot;utf-8&quot;&gt;
-    &lt;title&gt;Layouts and partials&lt;/title&gt;
-  &lt;/head&gt;
-  &lt;body&gt;
-    {{ include &quot;partials/header.html&quot; }}
-    &lt;main&gt;
-      {{ content }}
-    &lt;/main&gt;
-    {{ include &quot;partials/footer.html&quot; }}
-  &lt;/body&gt;
-&lt;/html&gt;
-</code></pre>
-<p>Key ideas:</p>
+            <h2>Navigation</h2>
+<p>Markspresso can generate a navigation sidebar from your content using filename conventions.</p>
+<h3>How navigation is built</h3>
+<p>Navigation is built from the list of documents discovered during a build. For each document, Markspresso knows:</p>
 <ul>
-<li><code>Layouts and partials</code> comes from front matter</li>
-<li><code>{{ content }}</code> is the rendered Markdown body</li>
-<li><code><nav class="docs-nav">
-  <ul>
-  <li><a href="/docs/">Documentation</a></li>
-  <li><a href="/navigation/">Navigation</a></li>
-    <li>
-      <strong>Docs</strong>
-      <ul>
-    <li><a href="/docs/getting-started/">Getting started</a></li>
-    <li><a href="/docs/site-structure-and-config/">Site structure and configuration</a></li>
-    <li><a href="/docs/content-and-front-matter/">Content and front matter</a></li>
-    <li class="active"><a href="/docs/layouts-and-partials/">Layouts and partials</a></li>
-    <li><a href="/docs/navigation/">Navigation</a></li>
-    <li><a href="/docs/posts-and-pages/">Posts and pages</a></li>
-      </ul>
-    </li>
-  </ul>
-</nav>
-</code> (when present) is generated HTML for the sidebar navigation</li>
-<li><code>{{ latest_posts }}</code> is injected on the home page if you use it in <code>content/index.md</code></li>
+<li><code>relPath</code> – path relative to the content root (e.g. <code>docs/010_getting-started.md</code>)</li>
+<li><code>meta</code> – front matter</li>
+<li><code>canonicalUrl</code> – the preferred URL for the page</li>
 </ul>
-<h3>Token replacement</h3>
-<p>Any key in a document's front matter is available to layouts as a token:</p>
+<p>The navigation builder:</p>
 <ul>
-<li><code>{{ key }}</code></li>
-<li><code>{{key}}</code> (no spaces)</li>
+<li>Treats top-level files (e.g. <code>index.md</code>) as root items</li>
+<li>Treats one level of nested folders as sections (e.g. everything under <code>docs/</code>)</li>
+<li>Ignores deeper nesting beyond two levels</li>
 </ul>
-<p>For example, given:</p>
-<pre><code class="language-markdown">---
-title: Landing
-layout: page
-cta_label: Get started
----
-
-Welcome!
-</code></pre>
-<p>You can use <code>{{ cta_label }}</code> inside <code>page.html</code>.</p>
-<h3>Including partials</h3>
-<p>To reuse markup (headers, footers, sidebars), put HTML files under <code>layouts/partials/</code> and include them with:</p>
-<pre><code class="language-html">{{ include &quot;partials/header.html&quot; }}
-</code></pre>
+<h3>Numeric prefixes for ordering</h3>
+<p>You can control ordering with numeric prefixes separated by an underscore:</p>
+<ul>
+<li><code>010_getting-started.md</code></li>
+<li><code>020_site-structure-and-config.md</code></li>
+<li><code>030_content-and-front-matter.md</code></li>
+</ul>
 <p>Rules:</p>
 <ul>
-<li>Paths are resolved relative to the <code>layouts/</code> directory</li>
-<li>Nested includes are supported: partials can include other partials</li>
-<li>Unsafe paths using <code>..</code> segments are ignored for safety</li>
+<li>Prefixes are 1–4 digits followed by <code>_</code> (e.g. <code>010_</code>, <code>5_</code>, <code>1234_</code>)</li>
+<li>Prefixes are <em>stripped</em> from display titles and URLs</li>
+<li>Items without a prefix are sorted after all prefixed items</li>
 </ul>
-<p>The <code>create</code> command seeds two partials:</p>
-<ul>
-<li><code>layouts/partials/header.html</code></li>
-<li><code>layouts/partials/footer.html</code></li>
-</ul>
-<p>Feel free to customize them.</p>
-<h3>Conditional blocks</h3>
-<p>Layouts support a simple conditional syntax:</p>
-<pre><code class="language-html">{{#if featured}}
-  &lt;div class=&quot;badge&quot;&gt;Featured&lt;/div&gt;
-{{/if}}
-</code></pre>
-<p>You can also specify an <code>else</code> branch:</p>
-<pre><code class="language-html">{{#if loggedIn}}
-  &lt;a href=&quot;/account/&quot;&gt;My account&lt;/a&gt;
-{{else}}
-  &lt;a href=&quot;/login/&quot;&gt;Log in&lt;/a&gt;
-{{/if}}
-</code></pre>
-<p>The condition key (<code>featured</code>, <code>loggedIn</code>) is looked up from the data available to the template (front matter plus injected fields like <code>content</code>, <code>navigation</code>, <code>latest_posts</code>).</p>
-<p><strong>Truthiness rules</strong>:</p>
-<ul>
-<li><code>false</code>, <code>0</code>, empty strings, empty arrays, empty structs, and <code>null</code> are treated as false</li>
-<li>Everything else is true</li>
-</ul>
-<h3>Layout selection</h3>
-<p>For each document, Markspresso chooses a layout as follows:</p>
+<h3>Deriving titles</h3>
+<p>If a document has <code>title</code> in front matter, that is used. Otherwise Markspresso:</p>
 <ol>
-<li>If front matter specifies <code>layout</code>, use that.</li>
-<li>Else, if the document belongs to a collection with a <code>layout</code> configured, use that.</li>
-<li>Otherwise, fall back to <code>build.defaultLayout</code> from <code>markspresso.json</code> (typically <code>page</code>).</li>
+<li>Strips numeric prefixes and file extensions</li>
+<li>Replaces <code>-</code> and <code>_</code> with spaces</li>
+<li>Title-cases each word</li>
 </ol>
-<p>This means you can:</p>
+<p>Examples:</p>
 <ul>
-<li>Use <code>layout: page</code> for regular pages</li>
-<li>Use <code>layout: post</code> for blog posts</li>
-<li>Define additional layouts (e.g. <code>docs.html</code>) and opt into them per page or per collection.</li>
+<li><code>010_introduction.md</code> → <code>Introduction</code></li>
+<li><code>020_server-management.md</code> → <code>Server Management</code></li>
 </ul>
+<h3>Hiding items from navigation</h3>
+<p>To hide a page from navigation, add <code>nav_hidden: true</code> in front matter:</p>
+<pre><code class="language-markdown">---
+title: Internal notes
+layout: page
+nav_hidden: true
+---
+
+This page will not appear in the sidebar.
+</code></pre>
+<h3>Scoping navigation to a sub-tree</h3>
+<p>If you only want navigation for a subset of your content (for example, everything under <code>content/docs</code>), set <code>navigation.rootPath</code> in <code>markspresso.json</code>:</p>
+<pre><code class="language-json">{
+  &quot;navigation&quot;: {
+    &quot;rootPath&quot;: &quot;docs&quot;
+  }
+}
+</code></pre>
+<p>With this setting, only documents whose <code>relPath</code> starts with <code>docs/</code> contribute to navigation, and the <code>docs/</code> prefix is removed when computing section names.</p>
+<h3>Active item highlighting</h3>
+<p>The navigation HTML includes an <code>active</code> class on the <code>&lt;li&gt;</code> corresponding to the current page. You can target this in CSS to highlight the current location.</p>
 
           </div>
         </main>
 
-        <aside class="toc-sidebar">
-          <div class="toc-inner">
-            <h2 class="toc-title">On this page</h2>
-            <ul class="toc-list">
-              <!-- optional ToC populated by JS or static includes -->
-            </ul>
-          </div>
-        </aside>
+        
       </div>
 
       <footer class="footer">
-        <div class="footer-inner">
-          <span>Markspresso · brewed with LuCLI &amp; CFML</span>
-          <div class="footer-links">
-            <a href="https://github.com/cybersonic/markspresso" class="footer-link" target="_blank">GitHub</a>
-          </div>
-        </div>
-      </footer>
+  <div class="footer-inner">
+    <span>Markspresso &copy; 2025 <a href="https://github.com/cybersonic/" class="footer-link" target="_blank">Mark Drew</a> · ☕️ brewed with ❤️, <a href="https://github.com/cybersonic/lucli" class="footer-link" target="_blank">LuCLI</a> &amp; <a href="https://lucee.org" class="footer-link" target="_blank">Lucee</a></span>
+    <span><a href="https://github.com/cybersonic/markspresso" class="footer-link" target="_blank">View on GitHub</a></span>
+  </div>
+</footer>
+
     </div>
     <script>
       (function() {
