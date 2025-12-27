@@ -1,0 +1,23 @@
+{
+  "build": {
+    "prettyUrls": true,
+    "defaultLayout": "page",
+    "latestPostsCount": 5,
+    "includeDrafts": false
+  },
+  "collections": {
+    "posts": {
+      "permalink": "/posts/:slug/",
+      "path": "posts",
+      "layout": "post"
+    }
+  },
+  "name": "true",
+  "baseUrl": "http://localhost:8080",
+  "paths": {
+    "content": "content",
+    "output": "public",
+    "layouts": "content/layouts",
+    "assets": "content/assets"
+  }
+}

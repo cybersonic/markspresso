@@ -1,0 +1,119 @@
+---
+title: Layouts and partials
+layout: page
+---
+
+## Layouts and partials
+
+Layouts control the HTML skeleton for your pages. They live under the `layouts/` directory.
+
+### Basic layout structure
+
+The `create` command scaffolds `layouts/page.html` and `layouts/post.html`. A simplified layout looks like this:
+
+```html
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{{ title }}</title>
+  </head>
+  <body>
+    {{ include "partials/header.html" }}
+    <main>
+      {{ content }}
+    </main>
+    {{ include "partials/footer.html" }}
+  </body>
+</html>
+```
+
+Key ideas:
+
+- `{{ title }}` comes from front matter
+- `{{ content }}` is the rendered Markdown body
+- `{{ navigation }}` (when present) is generated HTML for the sidebar navigation
+- `{{ latest_posts }}` is injected on the home page if you use it in `content/index.md`
+
+### Token replacement
+
+Any key in a document's front matter is available to layouts as a token:
+
+- `{{ key }}`
+- `{{key}}` (no spaces)
+
+For example, given:
+
+```markdown
+---
+title: Landing
+layout: page
+cta_label: Get started
+---
+
+Welcome!
+```
+
+You can use `{{ cta_label }}` inside `page.html`.
+
+### Including partials
+
+To reuse markup (headers, footers, sidebars), put HTML files under `layouts/partials/` and include them with:
+
+```html
+{{ include "partials/header.html" }}
+```
+
+Rules:
+
+- Paths are resolved relative to the `layouts/` directory
+- Nested includes are supported: partials can include other partials
+- Unsafe paths using `..` segments are ignored for safety
+
+The `create` command seeds two partials:
+
+- `layouts/partials/header.html`
+- `layouts/partials/footer.html`
+
+Feel free to customize them.
+
+### Conditional blocks
+
+Layouts support a simple conditional syntax:
+
+```html
+{{#if featured}}
+  <div class="badge">Featured</div>
+{{/if}}
+```
+
+You can also specify an `else` branch:
+
+```html
+{{#if loggedIn}}
+  <a href="/account/">My account</a>
+{{else}}
+  <a href="/login/">Log in</a>
+{{/if}}
+```
+
+The condition key (`featured`, `loggedIn`) is looked up from the data available to the template (front matter plus injected fields like `content`, `navigation`, `latest_posts`).
+
+**Truthiness rules**:
+
+- `false`, `0`, empty strings, empty arrays, empty structs, and `null` are treated as false
+- Everything else is true
+
+### Layout selection
+
+For each document, Markspresso chooses a layout as follows:
+
+1. If front matter specifies `layout`, use that.
+2. Else, if the document belongs to a collection with a `layout` configured, use that.
+3. Otherwise, fall back to `build.defaultLayout` from `markspresso.json` (typically `page`).
+
+This means you can:
+
+- Use `layout: page` for regular pages
+- Use `layout: post` for blog posts
+- Define additional layouts (e.g. `docs.html`) and opt into them per page or per collection.

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #f9fafb;
+        --surface: #ffffff;
+        --border-subtle: #e5e7eb;
+        --text: #111827;
+        --muted: #6b7280;
+        --accent: #2563eb;
+        --code-bg: rgba(15, 23, 42, 0.06); /* soft gray for light mode code blocks */
+      }
+
+      :root[data-theme="light"] {
+        --bg: #f9fafb;
+        --surface: #ffffff;
+        --border-subtle: #e5e7eb;
+        --text: #111827;
+        --muted: #6b7280;
+        --accent: #2563eb;
+        --code-bg: rgba(15, 23, 42, 0.06);
+      }
+
+      :root[data-theme="dark"] {
+        --bg: #020617;
+        --surface: #020617;
+        --border-subtle: #1f2937;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #38bdf8;
+        --code-bg: #020617;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme]) {
+          --bg: #020617;
+          --surface: #020617;
+          --border-subtle: #1f2937;
+          --text: #e5e7eb;
+          --muted: #9ca3af;
+          --accent: #38bdf8;
+          --code-bg: #020617;
+        }
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      a { color: var(--accent); }
+      a:hover { color: #0ea5e9; }
+
+      .header {
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--surface);
+      }
+
+      .header-inner {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+      }
+
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .logo-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 0;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .logo-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+      }
+
+      .logo-title {
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+      }
+
+      .logo-subtitle {
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      .theme-toggle {
+        border: 1px solid var(--border-subtle);
+        background: transparent;
+        color: var(--muted);
+        padding: 0.25rem 0.6rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        border-radius: 0;
+      }
+
+      .theme-toggle:hover {
+        color: var(--text);
+        background: rgba(148, 163, 184, 0.15);
+      }
+
+      .post-shell {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      .post-main {
+        max-width: 860px;
+        width: 100%;
+        margin: 2.25rem auto 2.5rem;
+        padding: 1.6rem 1.8rem 2.1rem;
+        border-radius: 0;
+        background: var(--surface);
+        border: 1px solid var(--border-subtle);
+        box-shadow: none;
+      }
+
+      .post-title {
+        margin: 0 0 0.5rem;
+        font-size: 2rem;
+        letter-spacing: 0.02em;
+      }
+
+      .post-meta {
+        margin: 0 0 1.4rem;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: var(--muted);
+      }
+
+      .post-body {
+        font-size: 0.98rem;
+        line-height: 1.9;
+      }
+
+      .post-body h2,
+      .post-body h3 {
+        margin-top: 1.8rem;
+      }
+
+      .post-body pre {
+        background: var(--code-bg);
+        color: var(--text);
+        border-radius: 0;
+        padding: 0.9rem 1.1rem;
+        overflow-x: auto;
+        font-size: 0.85rem;
+        border: 1px solid var(--border-subtle);
+      }
+
+      .post-body code {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        color: var(--text);
+        font-size: 0.85em;
+      }
+
+      .footer {
+        margin-top: auto;
+        border-top: 1px solid var(--border-subtle);
+        background: var(--surface);
+        padding: 0.75rem 1.5rem 1.1rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .footer-inner {
+        max-width: 860px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="post-shell">
+      {{ include "partials/header.html" }}
+      <article class="post-main">
+        <h1 class="post-title">{{ title }}</h1>
+        <p class="post-meta">A Markspresso brew</p>
+        <div class="post-body">
+          {{ content }}
+        </div>
+      </article>
+      {{ include "partials/footer.html" }}
+    </div>
+    <script>
+      (function() {
+        var storageKey = 'markspresso-theme';
+        var root = document.documentElement;
+
+        function applyTheme(theme) {
+          if (!theme) return;
+          root.setAttribute('data-theme', theme);
+          try { localStorage.setItem(storageKey, theme); } catch (e) {}
+        }
+
+        function getStoredTheme() {
+          try { return localStorage.getItem(storageKey); } catch (e) { return null; }
+        }
+
+        var stored = getStoredTheme();
+        if (stored === 'light' || stored === 'dark') {
+          applyTheme(stored);
+        } else {
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          applyTheme(prefersDark ? 'dark' : 'light');
+        }
+
+        window.markspressoToggleTheme = function() {
+          var current = root.getAttribute('data-theme') || 'light';
+          var next = current === 'light' ? 'dark' : 'light';
+          applyTheme(next);
+        };
+      })();
+    </script>
+  </body>
+</html>

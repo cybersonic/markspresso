@@ -54,9 +54,22 @@ component {
 
         variables.fileService.ensureDir(contentDir);
         variables.fileService.ensureDir(layoutsDir);
+        // Ensure a partials directory exists for shared header/footer/nav templates
+        variables.fileService.ensureDir(layoutsDir & "/partials");
         variables.fileService.ensureDir(assetsDir);
         variables.fileService.ensureDir(outputDir);
         variables.fileService.ensureDir(postsDir);
+
+        // Starter partials
+        var headerPartial = '<header>' & chr(10) &
+                            '  {{ navigation }}' & chr(10) &
+                            '</header>' & chr(10);
+        variables.fileService.writeFileIfMissing(layoutsDir & "/partials/header.html", headerPartial, force);
+
+        var footerPartial = '<footer style="margin-top: 2rem; padding: 1rem; border-top: 1px solid ##ddd; font-size: 0.9rem; color: ##666;">' & chr(10) &
+                            '  <p>Powered by Markspresso.</p>' & chr(10) &
+                            '</footer>' & chr(10);
+        variables.fileService.writeFileIfMissing(layoutsDir & "/partials/footer.html", footerPartial, force);
 
         // Write markspresso.json
         var config = variables.configService.getDefaultConfig(name, baseUrl);
@@ -108,10 +121,11 @@ component {
                          '    </style>' & chr(10) &
                          '  </head>' & chr(10) &
                          '  <body>' & chr(10) &
-                         '    {{ navigation }}' & chr(10) &
+                         '    {{ include "partials/header.html" }}' & chr(10) &
                          '    <main>' & chr(10) &
                          '      {{ content }}' & chr(10) &
                          '    </main>' & chr(10) &
+                         '    {{ include "partials/footer.html" }}' & chr(10) &
                          '  </body>' & chr(10) &
                          '</html>' & chr(10);
         variables.fileService.writeFileIfMissing(layoutsDir & "/page.html", pageLayout, force);
@@ -131,11 +145,12 @@ component {
                          '    </style>' & chr(10) &
                          '  </head>' & chr(10) &
                          '  <body>' & chr(10) &
-                         '    {{ navigation }}' & chr(10) &
+                         '    {{ include "partials/header.html" }}' & chr(10) &
                          '    <article>' & chr(10) &
                          '      <h1>{{ title }}</h1>' & chr(10) &
                          '      {{ content }}' & chr(10) &
                          '    </article>' & chr(10) &
+                         '    {{ include "partials/footer.html" }}' & chr(10) &
                          '  </body>' & chr(10) &
                          '</html>' & chr(10);
         variables.fileService.writeFileIfMissing(layoutsDir & "/post.html", postLayout, force);
@@ -329,7 +344,8 @@ component {
 
             // Inject latest posts for index page
             if (lcase(doc.relPath) == "index.md") {
-                effectiveMeta.latest_posts = arrayLen(postsCollection) ? renderLatestPostsHtml(postsCollection, 5) : "";
+                var maxPosts = config.build.latestPostsCount;
+                effectiveMeta.latest_posts = arrayLen(postsCollection) ? renderLatestPostsHtml(postsCollection, maxPosts) : "";
             }
 
             // Inject navigation HTML
@@ -344,6 +360,10 @@ component {
 
             var layoutPath = layoutsDir & "/" & doc.layoutName & ".html";
             var layoutHtml = fileExists(layoutPath) ? fileRead(layoutPath, "UTF-8") : "{{ content }}";
+
+            // Resolve layout partial includes such as {{ include "partials/header.html" }}.
+            // Include paths are resolved relative to the layouts directory.
+            layoutHtml = resolveLayoutIncludes(layoutHtml, layoutsDir);
 
             var rewrittenContent = variables.contentParser.rewriteLinks(doc.html, doc.relPath, docUrlMap);
 
@@ -530,6 +550,109 @@ component {
 
     private string function siteRoot() {
         return variables.cwd.len() ? variables.cwd : getCurrentTemplatePath().reReplace("[/\\][^/\\]*$", "");
+    }
+
+    /**
+     * Resolve {{ include "partials/header.html" }}-style directives in layout HTML.
+     * Include paths are resolved relative to the layouts directory (e.g. layouts/partials/header.html).
+     */
+    private string function resolveLayoutIncludes(
+        required string layoutHtml,
+        required string layoutsDir,
+        struct visited = {}
+    ) {
+        var result        = layoutHtml;
+        var searchStart   = 1;
+        var maxIterations = 1000;
+        var iteration     = 0;
+
+        // Normalize layoutsDir once
+        var baseDir = replace(layoutsDir, "\\", "/", "all");
+
+        while (true) {
+            iteration++;
+            if (iteration GT maxIterations) {
+                break;
+            }
+
+            // Look for the next include directive
+            var tokenStart = findNoCase("{{ include", result, searchStart);
+            if (!tokenStart) {
+                break;
+            }
+
+            // Find the first quote after the include keyword
+            var firstQuote = find('"', result, tokenStart);
+            if (!firstQuote) {
+                searchStart = tokenStart + len("{{ include");
+                continue;
+            }
+
+            // Find the closing quote
+            var secondQuote = find('"', result, firstQuote + 1);
+            if (!secondQuote) {
+                searchStart = firstQuote + 1;
+                continue;
+            }
+
+            // Extract the relative include path
+            var includeRelPath = mid(result, firstQuote + 1, secondQuote - firstQuote - 1);
+
+            // Find the closing }} for this include directive
+            var endToken = find("}}", result, secondQuote + 1);
+            if (!endToken) {
+                searchStart = secondQuote + 1;
+                continue;
+            }
+
+            var fullStart = tokenStart;
+            var fullEnd   = endToken + 1; // include both } characters
+
+            // Basic validation on the path
+            if (!len(trim(includeRelPath))) {
+                // Remove malformed include
+                result = left(result, fullStart - 1) & mid(result, fullEnd + 1);
+                searchStart = fullStart;
+                continue;
+            }
+
+            // Normalize path separators
+            includeRelPath = replace(includeRelPath, "\\", "/", "all");
+
+            // Prevent escaping layoutsDir via ../ segments
+            if (reFindNoCase("(^|/)\.\.(?:/|$)", includeRelPath)) {
+                result = left(result, fullStart - 1) & mid(result, fullEnd + 1);
+                searchStart = fullStart;
+                continue;
+            }
+
+            var fullPath = baseDir & "/" & includeRelPath;
+
+            // Detect recursive includes using the resolved full path
+            if (structKeyExists(visited, fullPath)) {
+                // Strip recursive include to avoid infinite loop
+                result = left(result, fullStart - 1) & mid(result, fullEnd + 1);
+                searchStart = fullStart;
+                continue;
+            }
+
+            var partialHtml = "";
+            if (fileExists(fullPath)) {
+                visited[fullPath] = true;
+                partialHtml = fileRead(fullPath, "UTF-8");
+                // Recursively resolve includes inside the partial
+                partialHtml = resolveLayoutIncludes(partialHtml, layoutsDir, visited);
+                structDelete(visited, fullPath);
+            }
+
+            // Replace the include directive with the resolved partial HTML (or empty string)
+            result = left(result, fullStart - 1) & partialHtml & mid(result, fullEnd + 1);
+
+            // Continue searching after the inserted content
+            searchStart = fullStart + len(partialHtml);
+        }
+
+        return result;
     }
 
     /**

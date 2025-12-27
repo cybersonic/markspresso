@@ -50,6 +50,7 @@ component {
         if (!structKeyExists(cfg.build, "defaultLayout")) cfg.build.defaultLayout = "page";
         if (!structKeyExists(cfg.build, "prettyUrls"))   cfg.build.prettyUrls   = true;
         if (!structKeyExists(cfg.build, "includeDrafts")) cfg.build.includeDrafts = false;
+        if (!structKeyExists(cfg.build, "latestPostsCount")) cfg.build.latestPostsCount = 5;
 
         // Collections
         if (!structKeyExists(cfg, "collections") or isNull(cfg.collections)) cfg.collections = {};
@@ -73,7 +74,8 @@ component {
             "build"   : {
                 "defaultLayout" : "page",
                 "prettyUrls"    : true,
-                "includeDrafts" : false
+                "includeDrafts" : false,
+                "latestPostsCount" : 5
             },
             "collections" : {
                 "posts" : {

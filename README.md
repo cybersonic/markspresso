@@ -60,7 +60,8 @@ A typical config looks like:
   "build": {
     "defaultLayout": "page",
     "prettyUrls": true,
-    "includeDrafts": false
+    "includeDrafts": false,
+    "latestPostsCount": 5
   },
   "collections": {
     "posts": {
@@ -83,6 +84,7 @@ Key fields:
 - `build.defaultLayout` – layout used when a Markdown file does not specify `layout` in front matter.
 - `build.prettyUrls` – when `true`, non-`index` pages are written as `.../slug/index.html`.
 - `build.includeDrafts` – global default for including `draft: true` content (overridden by the `drafts` flag).
+- `build.latestPostsCount` – number of recent posts to show in the `{{ latest_posts }}` token (default: 5).
 - `collections.posts` – example collection for blog posts; defines a subdirectory (`path`), default layout, and permalink pattern.
 
 ### Navigation configuration
