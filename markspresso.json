@@ -16,7 +16,7 @@
   "baseUrl": "http://localhost:8080",
   "paths": {
     "content": "content",
-    "output": "public",
+    "output": "docs",
     "layouts": "content/layouts",
     "assets": "content/assets"
   }
