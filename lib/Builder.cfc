@@ -821,7 +821,7 @@ component {
         if (structKeyExists(config, "baseUrl") and isSimpleValue(config.baseUrl)) {
             globals.baseUrl = config.baseUrl;
         }
-
+        var config   = arguments.config;
         var posts    = postsCollection;
         var tags     = tagsIndex;
         var archives = archivesIndex;
