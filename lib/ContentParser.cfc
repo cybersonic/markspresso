@@ -110,13 +110,27 @@ component {
             data.title = "";
         }
         
-        // Add rendered content
-        data.content = contentHtml;
+        // First, allow tokens/conditionals inside the rendered content itself.
+        // This lets things like {{ latest_posts }} or {{ archives_list }} work
+        // when they appear in Markdown bodies (e.g. content/index.md).
+        var processedContent = contentHtml;
+        
+        // Process conditionals in content
+        processedContent = processConditionals(processedContent, data);
+        
+        // Replace simple tokens in content
+        for (var cKey in data) {
+            var cVal = data[cKey];
+            processedContent = replaceNoCase(processedContent, "{{ " & cKey & " }}", cVal, "all");
+            processedContent = replaceNoCase(processedContent, "{{" & cKey & "}}", cVal, "all");
+        }
+        
+        // Expose the processed content to the layout as {{ content }}
+        data.content = processedContent;
 
-        // Process conditional blocks first (before simple token replacement)
+        // Now process the layout HTML using the same data (including content)
         layoutHtml = processConditionals(layoutHtml, data);
 
-        // Token replacement
         for (var key in data) {
             var value = data[key];
             layoutHtml = replaceNoCase(layoutHtml, "{{ " & key & " }}", value, "all");

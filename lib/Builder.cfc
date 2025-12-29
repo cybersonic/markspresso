@@ -212,6 +212,12 @@ component {
         var docUrlMap       = {};
         var dirsWithIndex   = {};
 
+        // Tagging and archives indexes
+        // tagsIndex: tagKey -> { name = originalTagLabel, posts = [ { title, date, url } ] }
+        // archivesIndex: "YYYY-MM" -> [ { title, date, url } ]
+        var tagsIndex      = {};
+        var archivesIndex  = {};
+
         // Pre-scan for index.md per directory so we can treat README.md as index when needed
         for (var scanPath in files) {
             var scanName = lcase(getFileFromPath(scanPath));
@@ -279,7 +285,7 @@ component {
 
             arrayAppend(docs, doc);
 
-            // Build posts collection
+            // Build posts collection and tagging/archives indexes
             if (len(collectionName) and collectionName == "posts") {
                 var postDate = "";
                 if (structKeyExists(doc.meta, "date")) {
@@ -294,11 +300,46 @@ component {
                         ? doc.meta.title
                         : (structCount(dateInfo) ? dateInfo.slug : relPath);
 
-                    arrayAppend(postsCollection, {
+                    var postEntry = {
                         title = postTitle,
                         date  = postDate,
                         url   = canonicalUrl
-                    });
+                    };
+
+                    arrayAppend(postsCollection, postEntry);
+
+                    // --- Tags index ---
+                    if (structKeyExists(doc.meta, "tags") and len(doc.meta.tags)) {
+                        // Treat tags as a comma-separated string; split and trim.
+                        var tagsString = "" & doc.meta.tags;
+                        var tagsArray  = listToArray(tagsString, ",");
+
+                        for (var t in tagsArray) {
+                            var tagLabel = trim(t);
+                            if (!len(tagLabel)) {
+                                continue;
+                            }
+
+                            var tagKey = lcase(tagLabel);
+                            if (!structKeyExists(tagsIndex, tagKey)) {
+                                tagsIndex[tagKey] = {
+                                    name  = tagLabel,
+                                    posts = []
+                                };
+                            }
+
+                            arrayAppend(tagsIndex[tagKey].posts, postEntry);
+                        }
+                    }
+
+                    // --- Archives index (by YYYY-MM) ---
+                    if (len(postDate) GTE 7) {
+                        var archiveKey = left(postDate, 7); // e.g. 2025-01
+                        if (!structKeyExists(archivesIndex, archiveKey)) {
+                            archivesIndex[archiveKey] = [];
+                        }
+                        arrayAppend(archivesIndex[archiveKey], postEntry);
+                    }
                 }
             }
         }
@@ -311,6 +352,20 @@ component {
                 }
                 return compare(b.date, a.date);
             });
+        }
+
+        // Determine latest post document (for home page featured post tokens)
+        var latestPostDoc = nullValue();
+        if (arrayLen(postsCollection)) {
+            var latestPostUrl = postsCollection[1].url;
+            if (len(latestPostUrl)) {
+                for (var dDoc in docs) {
+                    if (structKeyExists(dDoc, "canonicalUrl") and dDoc.canonicalUrl == latestPostUrl) {
+                        latestPostDoc = dDoc;
+                        break;
+                    }
+                }
+            }
         }
 
         // Determine if index needs rebuilding for incremental builds
@@ -342,11 +397,51 @@ component {
 
             var effectiveMeta = duplicate(doc.meta);
 
-            // Inject latest posts for index page
-            if (lcase(doc.relPath) == "index.md") {
+            // Inject global variables from config under a namespaced key like {{ globals.blogName }}
+            if (structKeyExists(config, "globals") and isStruct(config.globals)) {
+                for (var gKey in config.globals) {
+                    var gVal = config.globals[gKey];
+                    if (isSimpleValue(gVal)) {
+                        effectiveMeta["globals." & gKey] = gVal;
+                    }
+                }
+            }
+
+            var relLower = lcase(doc.relPath);
+
+            // Inject latest posts and featured post tokens for index page
+            // TODO: maybe we can have a global which is latest_post.content (for example)
+            if (relLower == "index.md") {
                 var maxPosts = config.build.latestPostsCount;
                 effectiveMeta.latest_posts = arrayLen(postsCollection) ? renderLatestPostsHtml(postsCollection, maxPosts) : "";
+
+                // Expose the most recent post's front matter and content as post.* tokens
+                // e.g. {{ post.title }}, {{ post.date }}, {{ post.content }}, {{ post.url }}
+                if (!isNull(latestPostDoc)) {
+                    // Copy all front matter keys under a post.* namespace
+                    if (structKeyExists(latestPostDoc, "meta") and isStruct(latestPostDoc.meta)) {
+                        for (var pKey in latestPostDoc.meta) {
+                            var pVal = latestPostDoc.meta[pKey];
+                            if (isSimpleValue(pVal)) {
+                                effectiveMeta["post." & pKey] = pVal;
+                            }
+                        }
+                    }
+
+                    // Always expose content and URL
+                    if (structKeyExists(latestPostDoc, "html")) {
+                        effectiveMeta["post.content"] = latestPostDoc.html;
+                    }
+                    if (structKeyExists(latestPostDoc, "canonicalUrl") and len(latestPostDoc.canonicalUrl)) {
+                        effectiveMeta["post.url"] = latestPostDoc.canonicalUrl;
+                    }
+                }
             }
+
+            // Make tags/archives/posts lists globally available so they can be used in any layout
+            effectiveMeta.tags_list = structCount(tagsIndex) ? renderTagsListHtml(tagsIndex, layoutsDir) : "";
+            effectiveMeta.archives_list = structCount(archivesIndex) ? renderArchivesListHtml(archivesIndex, layoutsDir) : "";
+            effectiveMeta.posts_list = arrayLen(postsCollection) ? renderPostsListHtml(postsCollection, layoutsDir) : "";
 
             // Inject navigation HTML
             var navRootPath = structKeyExists(config, "navigation") && structKeyExists(config.navigation, "rootPath") 
@@ -358,16 +453,56 @@ component {
                 rootPath = navRootPath
             );
 
-            var layoutPath = layoutsDir & "/" & doc.layoutName & ".html";
-            var layoutHtml = fileExists(layoutPath) ? fileRead(layoutPath, "UTF-8") : "{{ content }}";
+            // Make tags/archives/posts lists globally available so they can be used in any layout.
+            // These support CFML overrides in the active site's layouts directory.
+            effectiveMeta.tags_list = structCount(tagsIndex)
+                ? renderTagsListHtml(tagsIndex, layoutsDir)
+                : "";
 
-            // Resolve layout partial includes such as {{ include "partials/header.html" }}.
-            // Include paths are resolved relative to the layouts directory.
-            layoutHtml = resolveLayoutIncludes(layoutHtml, layoutsDir);
+            effectiveMeta.archives_list = structCount(archivesIndex)
+                ? renderArchivesListHtml(archivesIndex, layoutsDir)
+                : "";
+
+            effectiveMeta.posts_list = arrayLen(postsCollection)
+                ? renderPostsListHtml(postsCollection, layoutsDir)
+                : "";
+
+            // Determine layout base path and CFML/HTML variants
+            var layoutBasePath = layoutsDir & "/" & doc.layoutName;
+            var layoutCfmPath  = layoutBasePath & ".cfm";
+            var layoutHtmlPath = layoutBasePath & ".html";
 
             var rewrittenContent = variables.contentParser.rewriteLinks(doc.html, doc.relPath, docUrlMap);
+            var finalHtml = "";
 
-            var finalHtml = variables.contentParser.applyLayout(layoutHtml, effectiveMeta, rewrittenContent);
+            if (fileExists(layoutCfmPath)) {
+                // Use CFML layout override when present.
+                // First, process tokens/conditionals inside the content HTML itself
+                // so things like {{ latest_posts }} work when written in Markdown.
+                var processedContentOnly = variables.contentParser.applyLayout("{{ content }}", effectiveMeta, rewrittenContent);
+
+                finalHtml = renderWithCfmlLayout(
+                    overrideFilePath = layoutCfmPath,
+                    meta             = effectiveMeta,
+                    contentHtml      = processedContentOnly,
+                    config           = config,
+                    doc              = doc,
+                    postsCollection  = postsCollection,
+                    tagsIndex        = tagsIndex,
+                    archivesIndex    = archivesIndex,
+                    latestPostDoc    = latestPostDoc
+                );
+            }
+            else {
+                // Fallback to HTML layout with Markspresso token replacement
+                var layoutHtml = fileExists(layoutHtmlPath) ? fileRead(layoutHtmlPath, "UTF-8") : "{{ content }}";
+
+                // Resolve layout partial includes such as {{ include "partials/header.html" }}.
+                // Include paths are resolved relative to the layouts directory.
+                layoutHtml = resolveLayoutIncludes(layoutHtml, layoutsDir);
+
+                finalHtml = variables.contentParser.applyLayout(layoutHtml, effectiveMeta, rewrittenContent);
+            }
 
             var outPaths = computeOutputPathsForFile(
                 config,
@@ -656,6 +791,75 @@ component {
     }
 
     /**
+     * Render a CFML layout (e.g. layouts/post.cfm, layouts/page.cfm).
+     * Exposes content/meta/globals/doc/post/etc as local variables.
+     */
+    private string function renderWithCfmlLayout(
+        required string overrideFilePath,
+        required struct meta,
+        required string contentHtml,
+        required struct config,
+        required struct doc,
+        required array  postsCollection,
+        required struct tagsIndex,
+        required struct archivesIndex,
+        any latestPostDoc = nullValue()
+    ) {
+        var html = "";
+
+        // Primary data structures
+        var content = contentHtml;      // rendered Markdown for this document
+        var data    = meta;             // effective meta (front matter + injected fields)
+        var page    = doc;              // filePath, relPath, collectionName, etc.
+
+        // Optional convenience aliases
+        var globals = structKeyExists(config, "globals") && isStruct(config.globals)
+            ? duplicate(config.globals)
+            : {};
+
+        // Always expose config.baseUrl to layouts via globals.baseUrl
+        if (structKeyExists(config, "baseUrl") and isSimpleValue(config.baseUrl)) {
+            globals.baseUrl = config.baseUrl;
+        }
+
+        var posts    = postsCollection;
+        var tags     = tagsIndex;
+        var archives = archivesIndex;
+
+        // For posts collection items, expose a "post" struct
+        var post = {};
+        if (len(doc.collectionName) and doc.collectionName == "posts") {
+            post = duplicate(doc.meta);
+            post.content = contentHtml;
+            if (structKeyExists(doc, "canonicalUrl")) {
+                post.url = doc.canonicalUrl;
+            }
+        }
+
+        // Expose a full latestPost struct (front matter + content + url) when available
+        var latestPost = {};
+        if (!isNull(latestPostDoc)
+            and structKeyExists(latestPostDoc, "meta")
+            and isStruct(latestPostDoc.meta)) {
+
+            latestPost = duplicate(latestPostDoc.meta);
+
+            if (structKeyExists(latestPostDoc, "html")) {
+                latestPost.content = latestPostDoc.html;
+            }
+            if (structKeyExists(latestPostDoc, "canonicalUrl")) {
+                latestPost.url = latestPostDoc.canonicalUrl;
+            }
+        }
+
+        savecontent variable="html" {
+            include template="#contractPath(overrideFilePath)#";
+        }
+
+        return html;
+    }
+
+    /**
      * Strip numeric prefixes from path segments.
      * Example: "010_getting-started/020_intro.md" -> "getting-started/intro.md"
      */
@@ -815,7 +1019,13 @@ component {
             }
 
             if (len(permalink)) {
-                var permalinkPath = outputDir & "/" & permalink & "/index.html";
+                // If the permalink ends with an extension (e.g. ".xml"), treat it as a file path.
+                // Otherwise, use the existing /permalink/index.html convention.
+                var hasExt = listLen(listLast(permalink, "/"), ".") GT 1;
+                var permalinkPath = hasExt
+                    ? (outputDir & "/" & permalink)
+                    : (outputDir & "/" & permalink & "/index.html");
+
                 if (!structKeyExists(seen, permalinkPath)) {
                     seen[permalinkPath] = true;
                     arrayAppend(paths, permalinkPath);
@@ -847,6 +1057,14 @@ component {
             if (!len(p)) {
                 return "/";
             }
+
+            // If the permalink looks like a file (has an extension), return "/file.ext".
+            // Otherwise, treat it as a directory-style URL with trailing slash.
+            var hasExt = listLen(listLast(p, "/"), ".") GT 1;
+            if (hasExt) {
+                return "/" & p;
+            }
+
             return "/" & p & "/";
         }
 
@@ -891,6 +1109,115 @@ component {
             }
 
             html &= '<li><a href="' & htmlEditFormat(postUrl) & '">' & htmlEditFormat(postTitle) & '</a></li>';
+        }
+
+        html &= '</ul>';
+        return html;
+    }
+
+    /**
+     * Render a site-wide tags list as HTML.
+     * tagsIndex: tagKey -> { name, posts = [ { title, date, url } ] }
+     * If layouts/tags_list.cfm exists in the active site, that CFML template
+     * is used instead and receives a single argument: tagsIndex.
+     */
+    private string function renderTagsListHtml(struct tagsIndex, string layoutsDir) {
+        var overrideFilePath = layoutsDir & "/lists/tags_list.cfm";
+
+        if (fileExists(overrideFilePath)) {
+            savecontent variable="html" {
+                include template="#contractPath(overrideFilePath)#";
+            }
+            return html;
+        }
+
+        var html = '<ul class="tags-list">';
+
+        var tagKeys = structKeyArray(tagsIndex);
+        // Sort tag keys alphabetically, case-insensitive
+        arraySort(tagKeys, "textNoCase", "asc");
+
+        for (var i = 1; i <= arrayLen(tagKeys); i++) {
+            var key    = tagKeys[i];
+            var entry  = tagsIndex[key];
+            var label  = structKeyExists(entry, "name") ? entry.name : key;
+            var posts  = structKeyExists(entry, "posts") ? entry.posts : [];
+            var count  = arrayLen(posts);
+
+            html &= '<li class="tags-list__item">' & htmlEditFormat(label) & ' (' & count & ')</li>';
+        }
+
+        html &= '</ul>';
+        return html;
+    }
+
+    /**
+     * Render a date archives list as HTML.
+     * archivesIndex: "YYYY-MM" -> [ { title, date, url } ]
+     * If layouts/archives_list.cfm exists in the active site, that CFML
+     * template is used instead and receives a single argument: archivesIndex.
+     */
+    private string function renderArchivesListHtml(struct archivesIndex, string layoutsDir) {
+        var overrideFilePath = layoutsDir & "/lists/archives_list.cfm";
+
+        if (fileExists(overrideFilePath)) {
+            savecontent variable="html" {
+                include template="#contractPath(overrideFilePath)#";
+            }
+            return html;
+        }
+
+        var html = '<ul class="archives-list">';
+
+        var keys = structKeyArray(archivesIndex);
+        // Sort archive keys (e.g. YYYY-MM) so newest month appears first
+        arraySort(keys, "textNoCase", "desc");
+
+        for (var i = 1; i <= arrayLen(keys); i++) {
+            var key   = keys[i];
+            var posts = archivesIndex[key];
+            var count = arrayLen(posts);
+
+            html &= '<li class="archives-list__item">' & htmlEditFormat(key) & ' (' & count & ')</li>';
+        }
+
+        html &= '</ul>';
+        return html;
+    }
+
+/**
+     * Render a full posts list, e.g. for /posts index pages.
+     * If layouts/posts_list.cfm exists in the active site, that CFML template
+     * is used instead and receives a single argument: posts (array).
+     */
+    private string function renderPostsListHtml(array posts, string layoutsDir) {
+        var overrideFilePath = layoutsDir & "/lists/posts_list.cfm";
+
+        if (fileExists(overrideFilePath)) {
+            savecontent variable="html" {
+                include template="#contractPath(overrideFilePath)#";
+            }
+            return html;
+        }
+
+        var html = '<ul class="posts-list">';
+
+        for (var i = 1; i <= arrayLen(posts); i++) {
+            var p = posts[i];
+            var postTitle = structKeyExists(p, "title") ? p["title"] : "";
+            var postUrl   = structKeyExists(p, "url") ? p["url"] : "";
+            var postDate  = structKeyExists(p, "date") ? p["date"] : "";
+
+            if (!len(postUrl)) {
+                continue;
+            }
+
+            html &= '<li class="posts-list__item">';
+            html &= '<a href="' & htmlEditFormat(postUrl) & '">' & htmlEditFormat(postTitle) & '</a>';
+            if (len(postDate)) {
+                html &= ' <span class="post-date">' & htmlEditFormat(postDate) & '</span>';
+            }
+            html &= '</li>';
         }
 
         html &= '</ul>';

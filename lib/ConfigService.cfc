@@ -55,6 +55,9 @@ component {
         // Collections
         if (!structKeyExists(cfg, "collections") or isNull(cfg.collections)) cfg.collections = {};
 
+        // Globals (simple key/value pairs for templates, e.g. {{ globals.blogName }})
+        if (!structKeyExists(cfg, "globals") or isNull(cfg.globals) or !isStruct(cfg.globals)) cfg.globals = {};
+
         return cfg;
     }
 
@@ -83,7 +86,8 @@ component {
                     "layout"    : "post",
                     "permalink" : "/posts/:slug/"
                 }
-            }
+            },
+            "globals" : {}
         };
     }
 
