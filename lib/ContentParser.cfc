@@ -101,6 +101,12 @@ component {
      * Apply layout template with token replacement.
      * Replaces {{ key }} and {{key}} with values from meta and content.
      * Supports conditional blocks: {{#if key}}...{{/if}} and {{#if key}}...{{else}}...{{/if}}
+     *
+     * IMPORTANT: we must NOT evaluate template syntax that appears inside
+     * code examples (e.g. fenced ``` blocks rendered as <pre><code>...</code></pre>
+     * or inline <code>...</code> spans). To preserve those, we temporarily
+     * replace every <pre>/<code> block with a placeholder, run our
+     * conditional + token passes, then restore the original code blocks.
      */
     public string function applyLayout(string layoutHtml, struct meta, string contentHtml) {
         var data = duplicate(meta);
@@ -113,31 +119,105 @@ component {
         // First, allow tokens/conditionals inside the rendered content itself.
         // This lets things like {{ latest_posts }} or {{ archives_list }} work
         // when they appear in Markdown bodies (e.g. content/index.md).
+        // We explicitly avoid touching anything inside <pre> or <code> blocks
+        // so that code samples showing template syntax are not executed.
         var processedContent = contentHtml;
+
+        var contentProtection = protectCodeBlocks(processedContent);
+        var contentWorking    = contentProtection.template;
+
+        // Process conditionals in content (outside code blocks)
+        contentWorking = processConditionals(contentWorking, data);
         
-        // Process conditionals in content
-        processedContent = processConditionals(processedContent, data);
-        
-        // Replace simple tokens in content
+        // Replace simple tokens in content (outside code blocks)
         for (var cKey in data) {
             var cVal = data[cKey];
-            processedContent = replaceNoCase(processedContent, "{{ " & cKey & " }}", cVal, "all");
-            processedContent = replaceNoCase(processedContent, "{{" & cKey & "}}", cVal, "all");
+            contentWorking = replaceNoCase(contentWorking, "{{ " & cKey & " }}", cVal, "all");
+            contentWorking = replaceNoCase(contentWorking, "{{" & cKey & "}}", cVal, "all");
         }
+
+        processedContent = restoreCodeBlocks(contentWorking, contentProtection.blocks);
         
         // Expose the processed content to the layout as {{ content }}
         data.content = processedContent;
 
-        // Now process the layout HTML using the same data (including content)
-        layoutHtml = processConditionals(layoutHtml, data);
+        // Now process the layout HTML using the same data (including content),
+        // again skipping anything inside <pre>/<code> blocks.
+        var layoutProtection = protectCodeBlocks(layoutHtml);
+        var layoutWorking    = layoutProtection.template;
+
+        layoutWorking = processConditionals(layoutWorking, data);
 
         for (var key in data) {
             var value = data[key];
-            layoutHtml = replaceNoCase(layoutHtml, "{{ " & key & " }}", value, "all");
-            layoutHtml = replaceNoCase(layoutHtml, "{{" & key & "}}", value, "all");
+            layoutWorking = replaceNoCase(layoutWorking, "{{ " & key & " }}", value, "all");
+            layoutWorking = replaceNoCase(layoutWorking, "{{" & key & "}}", value, "all");
         }
 
-        return layoutHtml;
+        layoutWorking = restoreCodeBlocks(layoutWorking, layoutProtection.blocks);
+
+        return layoutWorking;
+    }
+
+    /**
+     * Protect <pre> and <code> blocks from token/conditional processing by
+     * replacing them with unique placeholders and returning the mapping.
+     */
+    private struct function protectCodeBlocks(string html) {
+        var result = {
+            template = html,
+            blocks   = []
+        };
+
+        // We scan for <pre>...</pre> and <code>...</code> blocks using
+        // simple string searches instead of multi-line regex so that
+        // we reliably catch fenced code blocks rendered by MarkdownToHTML.
+        var tags = ["pre", "code"];
+
+        for (var tag in tags) {
+            var searchFrom = 1;
+            var openTag    = "<" & tag;
+            var closeTag   = "</" & tag & ">";
+
+            while (true) {
+                var openPos = findNoCase(openTag, result.template, searchFrom);
+                if (!openPos) {
+                    break;
+                }
+
+                var closePos = findNoCase(closeTag, result.template, openPos);
+                if (!closePos) {
+                    break;
+                }
+
+                var blockLen  = closePos + len(closeTag) - openPos;
+                var blockHtml = mid(result.template, openPos, blockLen);
+                var placeholder = "__MSP_CODE_BLOCK_" & (arrayLen(result.blocks) + 1) & "__";
+
+                arrayAppend(result.blocks, {
+                    placeholder = placeholder,
+                    html        = blockHtml
+                });
+
+                result.template = left(result.template, openPos - 1) & placeholder & mid(result.template, openPos + blockLen);
+                searchFrom = openPos + len(placeholder);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Restore original <pre>/<code> blocks back into the template.
+     */
+    private string function restoreCodeBlocks(string template, array blocks) {
+        var result = template;
+
+        for (var block in blocks) {
+            result = replace(result, block.placeholder, block.html, "all");
+        }
+
+        return result;
     }
 
     /**

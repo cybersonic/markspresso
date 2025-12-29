@@ -30,10 +30,11 @@ The `create` command scaffolds `layouts/page.html` and `layouts/post.html`. A si
 
 Key ideas:
 
-- `{{ title }}` comes from front matter
-- `{{ content }}` is the rendered Markdown body
-- `{{ navigation }}` (when present) is generated HTML for the sidebar navigation
-- `{{ latest_posts }}` is injected on the home page if you use it in `content/index.md`
+- `{{` `title`  `}}` comes from front matter
+- `{{` `content`  `}}` is the rendered Markdown body
+- `{{` `navigation`  `}}` (when present) is generated HTML for the sidebar navigation
+- `{{` `latest_posts`  `}}` is injected on the home page if you use it in `content/index.md`
+- `{{` `tags_list`  `}}`, `{{` `archives_list` `}}` and `{{` `posts_list` `}}` are site-wide lists you can drop into any page or layout
 
 ### Token replacement
 
@@ -117,3 +118,28 @@ This means you can:
 - Use `layout: page` for regular pages
 - Use `layout: post` for blog posts
 - Define additional layouts (e.g. `docs.html`) and opt into them per page or per collection.
+
+### CFML layouts
+
+In addition to plain HTML layout files, Markspresso can render layouts written in CFML:
+
+- For a layout name like `page`, you can create `layouts/page.cfm` instead of (or as well as) `layouts/page.html`.
+- When both exist, the `.cfm` file wins; it is executed by Lucee and receives helpful variables such as `content`, `data` (front matter plus injected fields), `page` (info about the current document) and `globals`/`config`.
+
+Use CFML layouts when you want more dynamic behavior than simple token replacement and conditionals can provide.
+
+### Overriding built-in lists with CFML
+
+Markspresso builds a few site-wide lists for you, you just have to surround them with `{{}}`:
+
+- `{{` `tags_list` `}}`
+- `{{` `archives_list` `}}`
+- `{{` `posts_list` `}}`
+
+By default these are rendered as simple `<ul>` elements, but you can override each one with a CFML template under `layouts/lists/`:
+
+- `layouts/lists/tags_list.cfm`
+- `layouts/lists/archives_list.cfm`
+- `layouts/lists/posts_list.cfm`
+
+If any of these `.cfm` files exist in your site's layouts directory, they will be used instead of the default HTML. The templates receive the corresponding data structures (`tagsIndex`, `archivesIndex` or `posts`), so you are free to output whatever markup you like.
