@@ -276,6 +276,30 @@ else
     fail "Builder component missing"
 fi
 
+echo ""
+echo "Test 11: Globals configuration and templating"
+echo "--------------------------------------------"
+# Overwrite markspresso.json with a minimal config that defines globals; defaults are filled in by ConfigService
+cat > markspresso.json << 'EOF'
+{
+  "name": "Globals Test Site",
+  "globals": {
+    "blogName": "Globals Blog"
+  }
+}
+EOF
+
+# Use globals in the page layout
+echo '<p id="global-blog-name">{{ globals.blogName }}</p>' >> layouts/page.html
+
+lucli markspresso build clean > /dev/null 2>&1 || true
+
+if grep -q "Globals Blog" public/index.html; then
+    pass "Globals from markspresso.json rendered via {{ globals.blogName }}"
+else
+    fail "Globals from markspresso.json not rendered in HTML"
+fi
+
 # Summary
 echo ""
 echo "======================================"

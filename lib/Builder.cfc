@@ -166,11 +166,17 @@ component {
         string outDir = "",
         boolean clean = false,
         boolean drafts = false,
-        string onlyRelPath = ""
+        string onlyRelPath = "",
+        boolean dev = false
     ) {
         var onlyRelPathLower = lcase(onlyRelPath);
         
-        out("Building site...");
+        if(dev){
+            out("Building --development-- site...");
+        }
+        else{
+            out("Building site...");
+        }
         if (structKeyExists(variables.timer, "start")) {
             variables.timer.start("markspresso-build");
         }
@@ -251,40 +257,33 @@ component {
                 relPath = len(relDir) ? (relDir & "/index.md") : "index.md";
             }
 
-            var collectionName = findCollectionNameForRelPath(config, relPath);
+            // Use shared URL resolution helper so getUrlForContent can reuse logic
+            var urlInfo = resolveDocUrlInfo(
+                config  = config,
+                rootDir = rootDir,
+                relPath = relPath,
+                meta    = parsed.meta
+            );
 
-            var dateInfo = {};
-            if (len(collectionName) and collectionName == "posts") {
-                var relNoExt = reReplace(relPath, "\.[^.]+$", "");
-                dateInfo = deriveDateSlugFromRelPath(relNoExt);
-
-                if (structCount(dateInfo) and !structKeyExists(parsed.meta, "date")) {
-                    parsed.meta.date = dateInfo.year & "-" & dateInfo.month & "-" & dateInfo.day;
-                }
-            }
-
-            var layoutName = determineLayoutName(config, parsed.meta, collectionName);
+            var layoutName = determineLayoutName(config, parsed.meta, urlInfo.collectionName);
 
             var doc = {
                 filePath       = filePath,
                 relPath        = relPath,
-                collectionName = collectionName,
-                dateInfo       = dateInfo,
+                collectionName = urlInfo.collectionName,
+                dateInfo       = urlInfo.dateInfo,
                 meta           = parsed.meta,
                 html           = parsed.html,
                 layoutName     = layoutName,
-                canonicalUrl   = ""
+                canonicalUrl   = urlInfo.canonicalUrl
             };
 
-            var canonicalUrl = computeCanonicalUrl(outputDir, relPath, doc.meta, prettyUrls, collectionName, dateInfo);
-
-            doc.canonicalUrl = canonicalUrl;
-            if (len(canonicalUrl)) {
-                docUrlMap[lcase(relPath)] = canonicalUrl;
+            if (len(doc.canonicalUrl)) {
+                docUrlMap[lcase(relPath)] = doc.canonicalUrl;
             }
 
             arrayAppend(docs, doc);
-
+            var collectionName = doc.collectionName;
             // Build posts collection and tagging/archives indexes
             if (len(collectionName) and collectionName == "posts") {
                 var postDate = "";
@@ -490,7 +489,7 @@ component {
                     postsCollection  = postsCollection,
                     tagsIndex        = tagsIndex,
                     archivesIndex    = archivesIndex,
-                    latestPostDoc    = latestPostDoc
+                    latestPostDoc    = latestPostDoc?:{}
                 );
             }
             else {
@@ -514,15 +513,26 @@ component {
                 doc.dateInfo
             );
 
+            // If we're in dev mode, inject the refresh script tag before </body>
+            var htmlToWrite = finalHtml;
+            if (dev) {
+                htmlToWrite = injectDevRefreshScript(htmlToWrite);
+            }
+
             for (var outPath in outPaths) {
                 variables.fileService.ensureDir(getDirectoryFromPath(outPath));
-                fileWrite(outPath, finalHtml, "UTF-8");
+                fileWrite(outPath, htmlToWrite, "UTF-8");
             }
 
             builtCount++;
         }
 
         out("Built " & builtCount & " Markdown file(s) into " & outputDir);
+
+        // In dev mode, ensure the auto-reload script is present and linked
+        if (dev) {
+            ensureDevRefresh(outputDir);
+        }
         
         if (structKeyExists(variables.timer, "stop")) {
             variables.timer.stop("markspresso-build");
@@ -532,7 +542,7 @@ component {
     /**
      * Watch content/layouts/assets and trigger incremental builds.
      */
-    public void function watchSite(numeric numberOfSeconds = 1) {
+    public void function watchSite(numeric numberOfSeconds = 1, boolean dev=false) {
         var rootDir = siteRoot();
         var config  = variables.configService.load(rootDir);
 
@@ -550,7 +560,11 @@ component {
         var prevLayoutSnapshot  = variables.fileService.snapshotFiles(layoutsDir);
         var prevAssetSnapshot   = variables.fileService.snapshotFiles(assetsDir);
 
-        buildSite();
+        buildSite(dev=arguments.dev);
+
+        if(dev){
+            createWatchMarkerFile(outputDir);
+        }
 
         while (true) {
             sleep(numberOfSeconds * 1000);
@@ -569,7 +583,10 @@ component {
 
             if (arrayLen(changedLayouts)) {
                 out(arrayLen(changedLayouts) & " layout change(s) detected – rebuilding full site...");
-                buildSite();
+                buildSite(dev=arguments.dev);
+                if(dev){
+                    createWatchMarkerFile(outputDir);
+                }
             }
             else {
                 if (arrayLen(changedAssets)) {
@@ -577,12 +594,18 @@ component {
                     if (directoryExists(assetsDir)) {
                         variables.fileService.copyAssets(assetsDir, outputDir);
                     }
+                    if(dev){
+                        createWatchMarkerFile(outputDir);
+                    }
                 }
 
                 for (var changedPath in changedContent) {
                     var relPath = replace(mid(changedPath, len(contentDir) + 2), "\\", "/", "all");
                     out("Content change detected: " & relPath & " – rebuilding...");
-                    buildSite(onlyRelPath = relPath);
+                    buildSite(onlyRelPath = relPath, dev=arguments.dev);
+                    if(dev){
+                        createWatchMarkerFile(outputDir);
+                    }
                 }
             }
 
@@ -590,6 +613,64 @@ component {
             prevLayoutSnapshot  = currentLayoutSnapshot;
             prevAssetSnapshot   = currentAssetSnapshot;
         }
+    }
+
+
+    /**
+     * Add a watchmarker file that we can check to reload
+     */
+
+    private void function createWatchMarkerFile(string outputDir){
+        var markerPath = outputDir & "/__markspresso_reload.json";
+        var buildInfo = {
+            "buildId" = createUUID(),
+            "builtAt" = now()
+        };
+        
+        fileWrite(
+            markerPath,
+            serializeJSON(buildInfo)
+        );
+        out("Updated watch file");
+    }
+
+    /**
+     * In dev/watch mode, ensure the refresh JS is available and referenced.
+     */
+    private void function ensureDevRefresh(string outputDir) {
+        // 1) Copy the utility JS into outputDir/js/markspresso-refresh.js
+        var jsDir   = outputDir & "/js";
+        var jsPath  = jsDir & "/markspresso-refresh.js";
+        var moduleRoot = getDirectoryFromPath( getCurrentTemplatePath() );
+        var srcJsPath  = moduleRoot & "/../resources/utility/markspresso-refresh.js";
+
+        variables.fileService.ensureDir(jsDir);
+        if (fileExists(srcJsPath)) {
+            fileCopy(srcJsPath, jsPath);
+        }
+    }
+
+    /**
+     * Inject the dev refresh script tag just before </body> if possible.
+     */
+    private string function injectDevRefreshScript(string html) {
+        var scriptTag = '<script src="/js/markspresso-refresh.js"></script>';
+
+        // Avoid duplicates
+        if (findNoCase(scriptTag, html)) {
+            return html;
+        }
+
+        var bodyClose = reFindNoCase("</body>", html, 1, true);
+
+        
+        if (isStruct(bodyClose) and bodyClose.len[1] GT 0) {
+            var pos = bodyClose.pos[1];
+            return insert( chr(10) & scriptTag & chr(10), html, pos - 1);
+        }
+
+        // Fallback: append at end
+        return html & chr(10) & scriptTag & chr(10);
     }
 
     /**
@@ -610,8 +691,9 @@ component {
         var targetDir = contentDir;
         var layout = config.build.defaultLayout;
         
-        if (structKeyExists(config.collections, type)) {
-            collectionConfig = config.collections[type];
+        var pluralizedPath = type & "s";
+        if (structKeyExists(config.collections, pluralizedPath)) {
+            collectionConfig = config.collections[pluralizedPath];
             if (structKeyExists(collectionConfig, "path") and len(collectionConfig.path)) {
                 targetDir = contentDir & "/" & collectionConfig.path;
             }
@@ -620,6 +702,7 @@ component {
             }
         }
         
+        echo("targetDir:#targetDir#")
         // Generate slug from title if not provided
         if (!len(slug) and len(title)) {
             slug = lcase(trim(title));
@@ -636,11 +719,14 @@ component {
         
         // For posts, use date prefix in filename
         var filename = slug & ".md";
-        if (type == "posts") {
+        if (type == "post") {
             var now = now();
             var datePart = dateFormat(now, "yyyy-mm-dd");
             filename = datePart & "-" & slug & ".md";
         }
+
+        // Filepath for posts is defined in the config. 
+        
         
         var filePath = targetDir & "/" & filename;
         
@@ -679,6 +765,66 @@ component {
         fileWrite(filePath, content, "UTF-8");
         
         out("Created " & type & ": " & filePath);
+    }
+
+/**
+     * Resolve the URL for a given content file under the content directory.
+     * relContentPath is a path like "posts/2025-12-30-managing-servers-with-lucli.md"
+     * relative to config.paths.content.
+     *
+     * If pathOnly=true, returns just the canonical path (e.g. "/posts/foo/").
+     * Otherwise returns baseUrl + canonical path when baseUrl is configured.
+     */
+    public string function getUrlForContent(string relContentPath, boolean pathOnly = false) {
+        var rootDir = siteRoot();
+        var config  = variables.configService.load(rootDir);
+
+        var contentDir = rootDir & "/" & config.paths.content;
+        relContentPath = replace(relContentPath, "\\", "/", "all");
+        var filePath   = contentDir & "/" & relContentPath;
+
+        if (!fileExists(filePath)) {
+            out("Content file not found: " & filePath);
+            return "";
+        }
+
+        // Only need front matter, not full markdown render
+        var raw      = fileRead(filePath, "UTF-8");
+        var parsedFM = variables.contentParser.parseFrontMatter(raw);
+        var meta     = parsedFM.meta;
+
+        var urlInfo = resolveDocUrlInfo(
+            config  = config,
+            rootDir = rootDir,
+            relPath = relContentPath,
+            meta    = meta
+        );
+
+        if (!len(urlInfo.canonicalUrl)) {
+            out("[markspresso:getUrlForContent] No canonical URL resolved for " & relContentPath & ", collection=" & urlInfo.collectionName);
+            return "";
+        }
+
+        var canonical = urlInfo.canonicalUrl;
+
+        if (arguments.pathOnly) {
+            return canonical;
+        }
+
+        // Prefix with baseUrl if present
+        var baseUrl = structKeyExists(config, "baseUrl") ? trim(config.baseUrl) : "";
+        if (!len(baseUrl)) {
+            return canonical;
+        }
+
+        while (len(baseUrl) and right(baseUrl, 1) == "/") {
+            baseUrl = left(baseUrl, len(baseUrl) - 1);
+        }
+        if (left(canonical, 1) != "/") {
+            canonical = "/" & canonical;
+        }
+
+        return baseUrl & canonical;
     }
 
     // --- Private Helper Functions ---
@@ -887,6 +1033,54 @@ component {
             }
             systemOutput(message, true, false);
         }
+    }
+
+    /**
+     * Shared helper to resolve collectionName, dateInfo, and canonicalUrl
+     * for a document, given its relPath and meta. Used by buildSite and
+     * getUrlForContent to avoid duplicating URL rules.
+     */
+    private struct function resolveDocUrlInfo(
+        required struct config,
+        required string rootDir,
+        required string relPath,
+        required struct meta
+    ) {
+        var info = {
+            collectionName = "",
+            dateInfo       = {},
+            canonicalUrl   = ""
+        };
+
+        var collectionName = findCollectionNameForRelPath(config, relPath);
+
+        var dateInfo = {};
+        if (len(collectionName) and collectionName == "posts") {
+            var relNoExt = reReplace(relPath, "\.[^.]+$", "");
+            dateInfo = deriveDateSlugFromRelPath(relNoExt);
+
+            if (structCount(dateInfo) and !structKeyExists(meta, "date")) {
+                meta.date = dateInfo.year & "-" & dateInfo.month & "-" & dateInfo.day;
+            }
+        }
+
+        var outputDir  = rootDir & "/" & config.paths.output;
+        var prettyUrls = config.build.prettyUrls;
+
+        var canonicalUrl = computeCanonicalUrl(
+            outputDir      = outputDir,
+            relPath        = relPath,
+            meta           = meta,
+            prettyUrls     = prettyUrls,
+            collectionName = collectionName,
+            dateInfo       = dateInfo
+        );
+
+        info.collectionName = collectionName;
+        info.dateInfo       = dateInfo;
+        info.canonicalUrl   = canonicalUrl;
+
+        return info;
     }
 
     private string function findCollectionNameForRelPath(struct config, string relPath) {

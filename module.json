@@ -1,10 +1,10 @@
 {
   "name": "markspresso",
   "version": "1.0.0",
-  "description": "A new LuCLI module",
-  "author": "Your Name",
+  "description": "A static site generator module for Lucli.",
+  "author": "Mark Drew",
   "license": "MIT",
-  "keywords": ["lucli", "module", "cfml"],
+  "keywords": ["lucli", "module", "cfml", "static site generator"],
   "main": "Module.cfc",
   "created": "2025-11-28T22:08:53.982400Z"
 }

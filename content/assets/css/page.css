@@ -1,12 +1,4 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ title }} · Markspresso Docs</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="/css/page.css" rel="stylesheet">
-    <!-- <style>
+
       :root {
         /* default to light until data-theme is applied */
         --bg: #f9fafb;
@@ -78,7 +70,7 @@
       }
 
       .header-inner {
-        max-width: 1200px;
+     
         margin: 0 auto;
         padding: 0.75rem 1.5rem;
         display: flex;
@@ -167,8 +159,8 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr);
         gap: 1.75rem;
-        max-width: 1200px;
-        margin: 0 auto;
+        /* max-width: 1200px; */
+        /* margin: 0 auto; */
         padding: 1.5rem 1.25rem 2.5rem;
       }
 
@@ -364,84 +356,3 @@
       .footer-link:hover {
         color: var(--accent-strong);
       }
-    </style> -->
-  </head>
-  <body>
-    <div class="docs-shell">
-      <header class="header">
-        <div class="header-inner">
-          <a href="/" class="logo">
-            <div class="logo-icon">
-              <img src="/markspresso-logo.png" alt="Markspresso logo" style="width: 100%; height: 100%; object-fit: contain; border-radius: inherit;" />
-            </div>
-            <div class="logo-text">
-              <div class="logo-title">Markspresso</div>
-              <div class="logo-subtitle">Static sites brewed from Markdown</div>
-            </div>
-          </a>
-          <nav class="header-nav">
-            <a href="/" class="nav-link">Home</a>
-            <a href="/docs/010_getting-started/" class="nav-link active">Docs</a>
-            <a href="https://github.com/cybersonic/markspresso" class="nav-link" target="_blank">GitHub</a>
-            <button class="theme-toggle" type="button" onclick="window.markspressoToggleTheme && window.markspressoToggleTheme()" aria-label="Toggle color theme">🌓</button>
-          </nav>
-        </div>
-      </header>
-
-      <div class="docs-layout">
-        <aside class="sidebar">
-          <div class="sidebar-inner">
-            <h2 class="sidebar-title">Documentation</h2>
-            {{ navigation }}
-          </div>
-        </aside>
-
-        <main class="main-card">
-          <div class="content-header">
-            <h1 class="content-title">{{ title }}</h1>
-            {{#if description}}
-            <p class="content-description">{{ description }}</p>
-            {{/if}}
-          </div>
-          <div class="content-body">
-            {{ content }}
-          </div>
-        </main>
-
-        
-      </div>
-
-      {{ include "partials/footer.html"}}
-    </div>
-    <script>
-      (function() {
-        var storageKey = 'markspresso-theme';
-        var root = document.documentElement;
-
-        function applyTheme(theme) {
-          if (!theme) return;
-          root.setAttribute('data-theme', theme);
-          try { localStorage.setItem(storageKey, theme); } catch (e) {}
-        }
-
-        function getStoredTheme() {
-          try { return localStorage.getItem(storageKey); } catch (e) { return null; }
-        }
-
-        var stored = getStoredTheme();
-        if (stored === 'light' || stored === 'dark') {
-          applyTheme(stored);
-        } else {
-          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          applyTheme(prefersDark ? 'dark' : 'light');
-        }
-
-        window.markspressoToggleTheme = function() {
-          var current = root.getAttribute('data-theme') || 'light';
-          var next = current === 'light' ? 'dark' : 'light';
-          applyTheme(next);
-        };
-      })();
-    </script>
-  </body>
-</html>
