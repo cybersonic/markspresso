@@ -22,13 +22,13 @@ By default this will write the generated HTML into `public/`. In this project (t
 Use LuCLI's `server start` command to serve the built output directory:
 
 ```bash
-server start --disable-lucee ./public
+lucli server start --disable-lucee ./public
 ```
 
 or, if your `markspresso.json` is configured to output into `docs/` (like this repository):
 
 ```bash
-server start --disable-lucee ./docs
+lucliserver start --disable-lucee ./docs
 ```
 
 Then open the printed URL (usually `http://localhost:8888/` or similar) in your browser.
@@ -47,5 +47,5 @@ For Markspresso output this is exactly what you want: the final HTML that Marksp
 A common workflow when writing docs or posts is:
 
 1. Run `lucli markspresso watch` in one terminal to rebuild on changes.
-2. Run `server start --disable-lucee ./public` (or `./docs`) in another terminal.
+2. Run `lucli server start --disable-lucee ./public` (or `./docs`) in another terminal.
 3. Edit Markdown/layouts and refresh your browser to see the latest build.
