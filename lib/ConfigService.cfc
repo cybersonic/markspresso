@@ -58,6 +58,13 @@ component {
         // Globals (simple key/value pairs for templates, e.g. {{ globals.blogName }})
         if (!structKeyExists(cfg, "globals") or isNull(cfg.globals) or !isStruct(cfg.globals)) cfg.globals = {};
 
+        // Search / Lunr defaults
+        if (!structKeyExists(cfg, "search") or isNull(cfg.search)) cfg.search = {};
+        if (!structKeyExists(cfg.search, "lunr") or isNull(cfg.search.lunr)) cfg.search.lunr = {};
+        if (!structKeyExists(cfg.search.lunr, "enabled")) cfg.search.lunr.enabled = false;
+        if (!structKeyExists(cfg.search.lunr, "dataJs")) cfg.search.lunr.dataJs = "js/markspresso-search-data.js";
+        if (!structKeyExists(cfg.search.lunr, "searchJs")) cfg.search.lunr.searchJs = "js/markspresso-search.js";
+
         return cfg;
     }
 

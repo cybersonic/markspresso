@@ -11,17 +11,19 @@ component {
         required any contentParser,
         required any fileService,
         required any navigationBuilder,
+        required any lunrSearch,
         string cwd = "",
         any timer = nullValue(),
         any outputCallback = nullValue()
     ) {
-        variables.configService = arguments.configService;
-        variables.contentParser = arguments.contentParser;
-        variables.fileService   = arguments.fileService;
+        variables.configService     = arguments.configService;
+        variables.contentParser     = arguments.contentParser;
+        variables.fileService       = arguments.fileService;
         variables.navigationBuilder = arguments.navigationBuilder;
-        variables.cwd           = arguments.cwd;
-        variables.timer         = arguments.timer ?: {};
-        variables.outputCallback = arguments.outputCallback;
+        variables.lunrSearch        = arguments.lunrSearch;
+        variables.cwd               = arguments.cwd;
+        variables.timer             = arguments.timer ?: {};
+        variables.outputCallback    = arguments.outputCallback;
         
         return this;
     }
@@ -281,7 +283,10 @@ component {
             if (len(doc.canonicalUrl)) {
                 docUrlMap[lcase(relPath)] = doc.canonicalUrl;
             }
+            canonicalUrl = doc.canonicalUrl ?: "";
+            dateInfo     = urlInfo.dateInfo ?: {};
 
+            
             arrayAppend(docs, doc);
             var collectionName = doc.collectionName;
             // Build posts collection and tagging/archives indexes
@@ -294,7 +299,7 @@ component {
                     postDate = dateInfo.year & "-" & dateInfo.month & "-" & dateInfo.day;
                 }
 
-                if (len(canonicalUrl) and len(postDate)) {
+                if (len(doc.canonicalUrl) and len(postDate)) {
                     var postTitle = (structKeyExists(doc.meta, "title") and len(doc.meta.title))
                         ? doc.meta.title
                         : (structCount(dateInfo) ? dateInfo.slug : relPath);
@@ -366,7 +371,7 @@ component {
                 }
             }
         }
-
+        
         // Determine if index needs rebuilding for incremental builds
         var rebuildIndex = false;
         if (len(onlyRelPathLower)) {
@@ -377,9 +382,18 @@ component {
                 }
             }
         }
-
+        
+        // Build prev/next pagination map for docs subtree (if enabled via navigation.rootPath + navigation.pagination)
+        var docsPagination     = buildDocsPrevNextMap(config, docs);
+        var prevNextByRelLower = docsPagination.prevNextByRelLower;
+        var docsIndexRelLower  = docsPagination.docsIndexRelLower;
+        var firstDocsPage      = docsPagination.firstDocsPage;
+        
         // Second pass: render and write output files
         var builtCount = 0;
+
+        // Precompute Markspresso script tags (Lunr search, etc.) once per build
+        var markspressoScriptsHtml = variables.lunrSearch.getScriptHtml(config);
 
         for (var i = 1; i <= arrayLen(docs); i++) {
             var doc = docs[i];
@@ -408,39 +422,64 @@ component {
 
             var relLower = lcase(doc.relPath);
 
-            // Inject latest posts and featured post tokens for index page
-            // TODO: maybe we can have a global which is latest_post.content (for example)
-            if (relLower == "index.md") {
-                var maxPosts = config.build.latestPostsCount;
-                effectiveMeta.latest_posts = arrayLen(postsCollection) ? renderLatestPostsHtml(postsCollection, maxPosts) : "";
+        // Inject docs prev/next pagination when available
+        if (structKeyExists(prevNextByRelLower, relLower)) {
+            var pn = prevNextByRelLower[relLower];
 
-                // Expose the most recent post's front matter and content as post.* tokens
-                // e.g. {{ post.title }}, {{ post.date }}, {{ post.content }}, {{ post.url }}
-                if (!isNull(latestPostDoc)) {
-                    // Copy all front matter keys under a post.* namespace
-                    if (structKeyExists(latestPostDoc, "meta") and isStruct(latestPostDoc.meta)) {
-                        for (var pKey in latestPostDoc.meta) {
-                            var pVal = latestPostDoc.meta[pKey];
-                            if (isSimpleValue(pVal)) {
-                                effectiveMeta["post." & pKey] = pVal;
-                            }
+            if (len(pn.prevUrl)) {
+                effectiveMeta.prev_url   = pn.prevUrl;
+                effectiveMeta.prev_title = pn.prevTitle;
+            }
+            if (len(pn.nextUrl)) {
+                effectiveMeta.next_url   = pn.nextUrl;
+                effectiveMeta.next_title = pn.nextTitle;
+            }
+        }
+        else if (len(docsIndexRelLower) and relLower == lcase(docsIndexRelLower) and structCount(firstDocsPage)) {
+            // For the docs index page (e.g. content/docs/index.md), only expose a "next" link
+            if (structKeyExists(firstDocsPage, "canonicalUrl") and len(firstDocsPage.canonicalUrl)) {
+                effectiveMeta.next_url = firstDocsPage.canonicalUrl;
+            }
+            if (structKeyExists(firstDocsPage, "title") and len(firstDocsPage.title)) {
+                effectiveMeta.next_title = firstDocsPage.title;
+            }
+        }
+
+        // Inject latest posts and featured post tokens for index page (site root index.md)
+        if (relLower == "index.md") {
+            var maxPosts = config.build.latestPostsCount;
+            effectiveMeta.latest_posts = arrayLen(postsCollection) ? renderLatestPostsHtml(postsCollection, maxPosts) : "";
+
+            // Expose the most recent post's front matter and content as post.* tokens
+            // e.g. {{ post.title }}, {{ post.date }}, {{ post.content }}, {{ post.url }}
+            if (!isNull(latestPostDoc)) {
+                // Copy all front matter keys under a post.* namespace
+                if (structKeyExists(latestPostDoc, "meta") and isStruct(latestPostDoc.meta)) {
+                    for (var pKey in latestPostDoc.meta) {
+                        var pVal = latestPostDoc.meta[pKey];
+                        if (isSimpleValue(pVal)) {
+                            effectiveMeta["post." & pKey] = pVal;
                         }
                     }
+                }
 
-                    // Always expose content and URL
-                    if (structKeyExists(latestPostDoc, "html")) {
-                        effectiveMeta["post.content"] = latestPostDoc.html;
-                    }
-                    if (structKeyExists(latestPostDoc, "canonicalUrl") and len(latestPostDoc.canonicalUrl)) {
-                        effectiveMeta["post.url"] = latestPostDoc.canonicalUrl;
-                    }
+                // Always expose content and URL
+                if (structKeyExists(latestPostDoc, "html")) {
+                    effectiveMeta["post.content"] = latestPostDoc.html;
+                }
+                if (structKeyExists(latestPostDoc, "canonicalUrl") and len(latestPostDoc.canonicalUrl)) {
+                    effectiveMeta["post.url"] = latestPostDoc.canonicalUrl;
                 }
             }
+        }
 
             // Make tags/archives/posts lists globally available so they can be used in any layout
             effectiveMeta.tags_list = structCount(tagsIndex) ? renderTagsListHtml(tagsIndex, layoutsDir) : "";
             effectiveMeta.archives_list = structCount(archivesIndex) ? renderArchivesListHtml(archivesIndex, layoutsDir) : "";
             effectiveMeta.posts_list = arrayLen(postsCollection) ? renderPostsListHtml(postsCollection, layoutsDir) : "";
+
+            // Expose Markspresso-provided scripts (e.g. Lunr search) to layouts
+            effectiveMeta.markspressoScripts = markspressoScriptsHtml;
 
             // Inject navigation HTML
             var navRootPath = structKeyExists(config, "navigation") && structKeyExists(config.navigation, "rootPath") 
@@ -528,6 +567,15 @@ component {
         }
 
         out("Built " & builtCount & " Markdown file(s) into " & outputDir);
+
+        // Build Lunr search index/assets if enabled
+        if (structKeyExists(config, "search") and structKeyExists(config.search, "lunr") and config.search.lunr.enabled) {
+            variables.lunrSearch.build(
+                config   = config,
+                docs     = docs,
+                outputDir = outputDir
+            );
+        }
 
         // In dev mode, ensure the auto-reload script is present and linked
         if (dev) {
@@ -958,6 +1006,9 @@ component {
         var data    = meta;             // effective meta (front matter + injected fields)
         var page    = doc;              // filePath, relPath, collectionName, etc.
 
+        // Markspresso-provided script tags (e.g. Lunr search bundle)
+        var markspressoScripts = structKeyExists(meta, "markspressoScripts") ? meta.markspressoScripts : "";
+
         // Optional convenience aliases
         var globals = structKeyExists(config, "globals") && isStruct(config.globals)
             ? duplicate(config.globals)
@@ -1287,6 +1338,202 @@ component {
         }
 
         return path;
+    }
+
+    /**
+     * Build prev/next pagination map for documents under navigation.rootPath.
+     * Returns { prevNextByRelLower = {}, docsIndexRelLower = "", firstDocsPage = {} }.
+     * Pagination is opt-in via config.navigation.pagination = true.
+     */
+    private struct function buildDocsPrevNextMap(required struct config, required array docs) {
+        var result = {
+            prevNextByRelLower = {},
+            docsIndexRelLower  = "",
+            firstDocsPage      = {}
+        };
+
+        if (!structKeyExists(config, "navigation") or isNull(config.navigation)) {
+            return result;
+        }
+
+        var nav = config.navigation;
+
+        if (!structKeyExists(nav, "rootPath") or !len(trim(nav.rootPath))) {
+            return result;
+        }
+
+        // Pagination is opt-in; default is disabled unless explicitly enabled
+        if (structKeyExists(nav, "pagination") and !nav.pagination) {
+            return result;
+        }
+
+        var root = replace(trim(nav.rootPath), "\\", "/", "all");
+
+        var reading          = [];
+        var docsIndexRelLower = "";
+
+        for (var doc in docs) {
+            if (!structKeyExists(doc, "relPath")) {
+                continue;
+            }
+
+            var rel = replace(doc.relPath, "\\", "/", "all");
+
+            // Only include docs under navigation.rootPath/
+            if (left(rel, len(root) + 1) != root & "/") {
+                continue;
+            }
+
+            var afterRoot = mid(rel, len(root) + 2);
+            if (!len(afterRoot)) {
+                continue;
+            }
+
+            var parts = listToArray(afterRoot, "/");
+            if (!arrayLen(parts)) {
+                continue;
+            }
+
+            // Treat docs index (e.g. docs/index.md) specially: we don't include it
+            // in the main reading order, but we remember it so we can link to the
+            // first docs page from the index.
+            if (arrayLen(parts) == 1 and lcase(parts[1]) == "index.md") {
+                docsIndexRelLower = lcase(doc.relPath);
+                continue;
+            }
+
+            // Ignore deeper nesting beyond two levels for pagination
+            if (arrayLen(parts) > 2) {
+                continue;
+            }
+
+            var folderName  = "";
+            var fileName    = "";
+            var folderOrder = 0;
+            var fileOrder   = 0;
+
+            if (arrayLen(parts) == 1) {
+                fileName    = parts[1];
+                folderOrder = 0;
+            }
+            else {
+                folderName  = parts[1];
+                fileName    = parts[2];
+                folderOrder = extractNumericPrefixForDocs(folderName);
+            }
+
+            fileOrder = extractNumericPrefixForDocs(fileName);
+
+            var title = "";
+            if (structKeyExists(doc, "meta") and structKeyExists(doc.meta, "title") and len(doc.meta.title)) {
+                title = doc.meta.title;
+            }
+            else {
+                title = deriveTitleFromNameForDocs(fileName);
+            }
+
+            arrayAppend(reading, {
+                relPath      = doc.relPath,
+                canonicalUrl = (structKeyExists(doc, "canonicalUrl") ? (doc.canonicalUrl ?: "") : ""),
+                title        = title,
+                folderName   = folderName,
+                fileName     = fileName,
+                folderOrder  = folderOrder,
+                fileOrder    = fileOrder
+            });
+        }
+
+        if (!arrayLen(reading)) {
+            return result;
+        }
+
+        if (arrayLen(reading) > 1) {
+            arraySort(reading, function(a, b) {
+                if (a.folderOrder != b.folderOrder) {
+                    return compare(a.folderOrder, b.folderOrder);
+                }
+                if (a.folderName != b.folderName) {
+                    return compare(a.folderName, b.folderName);
+                }
+                if (a.fileOrder != b.fileOrder) {
+                    return compare(a.fileOrder, b.fileOrder);
+                }
+                return compare(a.fileName, b.fileName);
+            });
+        }
+
+        var prevNext = {};
+
+        for (var i = 1; i <= arrayLen(reading); i++) {
+            var current   = reading[i];
+            var relLower  = lcase(current.relPath);
+            var prevUrl   = "";
+            var prevTitle = "";
+            var nextUrl   = "";
+            var nextTitle = "";
+
+            if (i > 1) {
+                var p = reading[i - 1];
+                prevUrl   = p.canonicalUrl;
+                prevTitle = p.title;
+            }
+
+            if (i < arrayLen(reading)) {
+                var n = reading[i + 1];
+                nextUrl   = n.canonicalUrl;
+                nextTitle = n.title;
+            }
+
+            prevNext[relLower] = {
+                prevUrl   = prevUrl,
+                prevTitle = prevTitle,
+                nextUrl   = nextUrl,
+                nextTitle = nextTitle
+            };
+        }
+
+        result.prevNextByRelLower = prevNext;
+        result.docsIndexRelLower  = docsIndexRelLower;
+        result.firstDocsPage      = reading[1];
+
+        return result;
+    }
+
+    /**
+     * Extract numeric prefix for docs (1–4 digits + underscore). Falls back to 9999.
+     */
+    private numeric function extractNumericPrefixForDocs(string name) {
+        var matches = reMatch("^(\\d{1,4})_", arguments.name);
+        if (arrayLen(matches)) {
+            return val(matches[1]);
+        }
+        return 9999;
+    }
+
+    /**
+     * Derive a human-readable title from a docs filename, similar to NavigationBuilder.
+     */
+    private string function deriveTitleFromNameForDocs(string name) {
+        var clean = arguments.name;
+
+        // Remove numeric prefix and extension
+        clean = reReplace(clean, "^(\\d{1,4})_", "");
+        clean = reReplace(clean, "\\.[^.]+$", "");
+
+        // Replace separators with spaces
+        clean = replace(clean, "-", " ", "all");
+        clean = replace(clean, "_", " ", "all");
+
+        var words = listToArray(clean, " ");
+        var titleWords = [];
+        for (var word in words) {
+            if (len(word)) {
+                var titleWord = uCase(left(word, 1)) & lCase(mid(word, 2));
+                arrayAppend(titleWords, titleWord);
+            }
+        }
+
+        return arrayToList(titleWords, " ");
     }
 
     private string function renderLatestPostsHtml(array posts, numeric maxCount=5) {

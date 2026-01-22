@@ -21,10 +21,11 @@ component extends="modules.BaseModule" {
         variables.timer         = arguments.timer ?: {};
 
         // Initialize services
-        variables.configService = new lib.ConfigService();
-        variables.contentParser = new lib.ContentParser();
-        variables.fileService   = new lib.FileService();
+        variables.configService     = new lib.ConfigService();
+        variables.contentParser     = new lib.ContentParser();
+        variables.fileService       = new lib.FileService();
         variables.navigationBuilder = new lib.NavigationBuilder();
+        variables.lunrSearch        = new lib.LunrSearch(fileService = variables.fileService);
         
         // Initialize builder with dependencies
         variables.builder = new lib.Builder(
@@ -32,6 +33,7 @@ component extends="modules.BaseModule" {
             contentParser      = variables.contentParser,
             fileService        = variables.fileService,
             navigationBuilder  = variables.navigationBuilder,
+            lunrSearch         = variables.lunrSearch,
             cwd                = variables.cwd,
             timer              = variables.timer,
             outputCallback     = nullValue()

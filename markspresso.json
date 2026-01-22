@@ -12,7 +12,16 @@
       "layout": "post"
     }
   },
-  "name": "true",
+  "navigation": {
+    "rootPath": "",
+    "pagination": true
+  },
+  "search": {
+    "lunr": {
+      "enabled": true
+    }
+  },
+  "name": "markspresso",
   "baseUrl": "http://localhost:8080",
   "paths": {
     "content": "content",
