@@ -383,10 +383,16 @@
             <a href="/" class="nav-link">Home</a>
             <a href="/docs/010_getting-started/" class="nav-link active">Docs</a>
             <a href="https://github.com/cybersonic/markspresso" class="nav-link" target="_blank">GitHub</a>
+            <form class="search">
+              <input id="markspresso-search-input" type="search" placeholder="Search docs…">
+            </form>
             <button class="theme-toggle" type="button" onclick="window.markspressoToggleTheme && window.markspressoToggleTheme()" aria-label="Toggle color theme">🌓</button>
           </nav>
         </div>
       </header>
+
+       
+      <div id="markspresso-search-results"></div>
 
       <div class="docs-layout">
         <aside class="sidebar">
@@ -406,6 +412,18 @@
           <div class="content-body">
             {{ content }}
           </div>
+          
+          {{#if prev_url}}
+          <div class="content-nav">
+            <a href="{{ prev_url }}" class="nav-link prev-link">← {{ prev_title }}</a>
+          </div>
+          {{/if}}
+          
+          {{#if next_url}}
+          <div class="content-nav">
+            <a href="{{ next_url }}" class="nav-link next-link">{{ next_title }} →</a>
+          </div>
+          {{/if}}
         </main>
 
         
@@ -443,5 +461,6 @@
         };
       })();
     </script>
+    {{ markspressoScripts }}
   </body>
 </html>

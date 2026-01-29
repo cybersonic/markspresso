@@ -94,7 +94,8 @@ component {
      * Uses CFML's built-in MarkdownToHTML function.
      */
     public string function renderMarkdown(string src) {
-        return MarkDownToHTML(src);
+        var md = new Markdown();
+        return md.render(src);
     }
 
     /**

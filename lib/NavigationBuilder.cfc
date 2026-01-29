@@ -62,11 +62,23 @@ component {
             return "";
         }
 
+        // Normalize current path for active-state comparison: when rootPath is set,
+        // nav items use stripped paths (e.g. "010_getting-started.md"); currentRelPath
+        // from Builder is the full path (e.g. "docs/010_getting-started.md"). Strip
+        // the same prefix so the active check matches.
+        var currentForActive = arguments.currentRelPath;
+        if (len(rootPathPrefix)) {
+            var normalizedCurrent = replace(arguments.currentRelPath, "\", "/", "all");
+            if (left(normalizedCurrent, len(rootPathPrefix)) == rootPathPrefix) {
+                currentForActive = mid(normalizedCurrent, len(rootPathPrefix) + 1);
+            }
+        }
+
         // Build tree structure
         var tree = buildNavigationTree(filteredDocs);
 
         // Render HTML
-        return renderNavigationHtml(tree, arguments.currentRelPath);
+        return renderNavigationHtml(tree, currentForActive);
     }
 
     /**
