@@ -15,6 +15,8 @@ component extends="modules.BaseModule" {
         string cwd = "",
         any timer = nullValue()
     ) {
+        super.init(argumentCollection=arguments);
+        
         variables.verboseEnabled = arguments.verboseEnabled;
         variables.timingEnabled = arguments.timingEnabled;
         variables.cwd           = arguments.cwd;

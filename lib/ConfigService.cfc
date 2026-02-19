@@ -55,6 +55,19 @@ component {
         // Collections
         if (!structKeyExists(cfg, "collections") or isNull(cfg.collections)) cfg.collections = {};
 
+        // Apply feed defaults to each collection
+        for (var collectionName in cfg.collections) {
+            var col = cfg.collections[collectionName];
+            if (!structKeyExists(col, "feed") or isNull(col.feed)) {
+                col.feed = {};
+            }
+            if (!structKeyExists(col.feed, "enabled")) col.feed.enabled = false;
+            if (!structKeyExists(col.feed, "formats") or !isArray(col.feed.formats)) col.feed.formats = ["rss", "atom"];
+            if (!structKeyExists(col.feed, "limit")) col.feed.limit = 20;
+            if (!structKeyExists(col.feed, "title")) col.feed.title = "";
+            if (!structKeyExists(col.feed, "description")) col.feed.description = "";
+        }
+
         // Globals (simple key/value pairs for templates, e.g. {{ globals.blogName }})
         if (!structKeyExists(cfg, "globals") or isNull(cfg.globals) or !isStruct(cfg.globals)) cfg.globals = {};
 
@@ -91,7 +104,14 @@ component {
                 "posts" : {
                     "path"      : "posts",
                     "layout"    : "post",
-                    "permalink" : "/posts/:slug/"
+                    "permalink" : "/posts/:slug/",
+                    "feed"      : {
+                        "enabled"     : true,
+                        "formats"     : ["rss", "atom"],
+                        "limit"       : 20,
+                        "title"       : "",
+                        "description" : ""
+                    }
                 }
             },
             "globals" : {}

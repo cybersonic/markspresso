@@ -21,6 +21,7 @@ component {
         variables.fileService       = arguments.fileService;
         variables.navigationBuilder = arguments.navigationBuilder;
         variables.lunrSearch        = arguments.lunrSearch;
+        variables.feedGenerator     = new FeedGenerator(fileService = arguments.fileService);
         variables.cwd               = arguments.cwd;
         variables.timer             = arguments.timer ?: {};
         variables.outputCallback    = arguments.outputCallback;
@@ -304,10 +305,17 @@ component {
                         ? doc.meta.title
                         : (structCount(dateInfo) ? dateInfo.slug : relPath);
 
+                    // Include description from front matter if available
+                    var postDescription = (structKeyExists(doc.meta, "description") and len(doc.meta.description))
+                        ? doc.meta.description
+                        : "";
+
                     var postEntry = {
-                        title = postTitle,
-                        date  = postDate,
-                        url   = canonicalUrl
+                        title       = postTitle,
+                        date        = postDate,
+                        url         = canonicalUrl,
+                        description = postDescription,
+                        content     = doc.html
                     };
 
                     arrayAppend(postsCollection, postEntry);
@@ -575,6 +583,25 @@ component {
                 docs     = docs,
                 outputDir = outputDir
             );
+        }
+
+        // Generate RSS/Atom feeds for collections with feed.enabled
+        if (structKeyExists(config, "collections")) {
+            for (var colName in config.collections) {
+                var colConfig = config.collections[colName];
+                if (structKeyExists(colConfig, "feed") and colConfig.feed.enabled) {
+                    // Use postsCollection for "posts", extend for other collections as needed
+                    if (colName == "posts" and arrayLen(postsCollection)) {
+                        variables.feedGenerator.generateFeeds(
+                            config         = config,
+                            collectionName = colName,
+                            items          = postsCollection,
+                            outputDir      = outputDir
+                        );
+                        out("Generated feeds for '" & colName & "' collection");
+                    }
+                }
+            }
         }
 
         // In dev mode, ensure the auto-reload script is present and linked
@@ -1141,6 +1168,15 @@ component {
 
         var normalizedRel = replace(relPath, "\\", "/", "all");
 
+        // Get content path prefix to strip from collection paths if present
+        var contentPrefix = structKeyExists(config, "paths") && structKeyExists(config.paths, "content")
+            ? replace(config.paths.content, "\\", "/", "all")
+            : "";
+        // Ensure contentPrefix ends with / for comparison
+        if (len(contentPrefix) and right(contentPrefix, 1) != "/") {
+            contentPrefix = contentPrefix & "/";
+        }
+
         for (var name in config.collections) {
             var col = config.collections[name];
             if (!structKeyExists(col, "path") or !len(col.path)) {
@@ -1148,6 +1184,12 @@ component {
             }
 
             var colPath = replace(col.path, "\\", "/", "all");
+
+            // If collection path starts with content path prefix, strip it
+            // e.g. "content/posts" -> "posts" when content dir is "content"
+            if (len(contentPrefix) and left(colPath, len(contentPrefix)) == contentPrefix) {
+                colPath = mid(colPath, len(contentPrefix) + 1);
+            }
 
             if (left(normalizedRel, len(colPath)) == colPath
                 and (len(normalizedRel) == len(colPath) or mid(normalizedRel, len(colPath) + 1, 1) == "/")) {
