@@ -169,6 +169,7 @@ component extends="modules.BaseModule" {
             drafts   = drafts,
             toc      = toc
         );
+    }
 /**
      * lucli markspresso geturl content=posts/2025-12-30-managing-servers-with-lucli.md [pathOnly=true]
      *
