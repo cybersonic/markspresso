@@ -37,6 +37,14 @@ component extends="modules.BaseModule" {
             outputCallback     = nullValue()
         );
 
+        // Initialize PDF builder
+        variables.pdfBuilder = new lib.PdfBuilder(
+            configService = variables.configService,
+            contentParser = variables.contentParser,
+            fileService   = variables.fileService,
+            cwd           = variables.cwd
+        );
+
         return this;
     }
 
@@ -133,6 +141,26 @@ component extends="modules.BaseModule" {
             type  = type,
             title = title,
             slug  = slug
+        );
+    }
+
+    /**
+     * lucli markspresso pdf
+     *   --rootPath=docs --outFile=mysite.pdf --drafts --toc
+     *
+     * Generates a PDF from the docs collection (excludes posts).
+     */
+    function pdf(
+        string rootPath = "",
+        string outFile  = "",
+        boolean drafts  = false,
+        boolean toc     = true
+    ) {
+        return variables.pdfBuilder.buildPdf(
+            rootPath = rootPath,
+            outFile  = outFile,
+            drafts   = drafts,
+            toc      = toc
         );
     }
 

@@ -12,12 +12,23 @@
       "layout": "post"
     }
   },
-  "name": "true",
+  "name": "Markspresso Documentation",
   "baseUrl": "http://localhost:8080",
   "paths": {
     "content": "content",
-    "output": "public",
+    "output": "docs",
     "layouts": "content/layouts",
     "assets": "content/assets"
+  },
+  "pdf": {
+    "enabled": true,
+    "output": "markspresso-docs.pdf",
+    "title": "Markspresso Documentation",
+    "author": "Mark Drew",
+    "pageSize": "A4",
+    "orientation": "portrait",
+    "tocEnabled": true,
+    "headerHtml": "<div style=\"font-size: 9pt; color: #666; border-bottom: 1px solid #ccc; padding-bottom: 5px;\"><span style=\"float:left;\">{{ title }}</span><span style=\"float:right;\">{{ currentChapterTitle }}</span><div style=\"clear:both;\"></div></div>",
+    "footerHtml": "<div style=\"text-align: center; font-size: 9pt; color: #666; border-top: 1px solid #ccc; padding-top: 5px;\">Page {{ currentSectionPage }} of {{ totalSectionPages }}</div>"
   }
 }

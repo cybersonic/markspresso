@@ -3,3 +3,5 @@ Application.cfc
 index.cfm
 lucee.json
 test-site/
+markspresso-docs.pdf
+debug-pdf-input.html
