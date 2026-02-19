@@ -1,0 +1,39 @@
+{
+  "name": "Test Blog",
+  "baseUrl": "http://localhost:8080",
+  "paths": {
+    "content": "content",
+    "output": "public",
+    "layouts": "content/layouts",
+    "assets": "content/assets"
+  },
+  "build": {
+    "prettyUrls": true,
+    "defaultLayout": "page",
+    "latestPostsCount": 5,
+    "includeDrafts": false
+  },
+  "collections": {
+    "posts": {
+      "path": "posts",
+      "layout": "post",
+      "permalink": "/posts/:slug/",
+      "feed": {
+        "enabled": true,
+        "formats": ["rss", "atom"],
+        "limit": 10,
+        "title": "Test Blog Posts",
+        "description": "Latest posts from Test Blog"
+      }
+    }
+  },
+  "navigation": {
+    "rootPath": "docs",
+    "pagination": true
+  },
+  "search": {
+    "lunr": {
+      "enabled": true
+    }
+  }
+}
