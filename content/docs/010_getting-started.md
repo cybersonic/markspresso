@@ -12,6 +12,13 @@ This guide shows how to scaffold a new site, run a build, and iterate on your co
 - LuCLI installed and on your `PATH`.
 - A directory where you want your static site to live (your "site root").
 
+
+## Installing Markspresso
+
+```bash
+lucli install markspresso
+```
+
 From your site root, you will run commands via LuCLI:
 
 ```bash

@@ -375,7 +375,7 @@
             </div>
             <div class="logo-text">
               <div class="logo-title">Markspresso</div>
-              <div class="logo-subtitle">Static docs brewed from Markdown</div>
+              <div class="logo-subtitle">Static sites brewed from Markdown</div>
             </div>
           </a>
           <nav class="header-nav">
@@ -407,24 +407,10 @@
           </div>
         </main>
 
-        <aside class="toc-sidebar">
-          <div class="toc-inner">
-            <h2 class="toc-title">On this page</h2>
-            <ul class="toc-list">
-              <!-- optional ToC populated by JS or static includes -->
-            </ul>
-          </div>
-        </aside>
+        
       </div>
 
-      <footer class="footer">
-        <div class="footer-inner">
-          <span>Markspresso · brewed with LuCLI &amp; CFML</span>
-          <div class="footer-links">
-            <a href="https://github.com/cybersonic/markspresso" class="footer-link" target="_blank">GitHub</a>
-          </div>
-        </div>
-      </footer>
+      {{ include "partials/footer.html"}}
     </div>
     <script>
       (function() {
