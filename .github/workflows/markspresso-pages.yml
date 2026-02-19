@@ -1,0 +1,57 @@
+name: Build and deploy Markspresso site
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build static site
+    runs-on: ubuntu-latest
+
+    # Run all steps inside your LuCLI Docker image
+    container:
+      image: markdrew/lucli:latest   # TODO: change to your image
+      # env:
+      #   LUCEE_SERVER_HOME: /opt/lucee    # TODO: add any Lucee/LuCLI env here
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+    
+      - name: Install Markspresso
+        run: lucli module install markspresso
+
+      - name: Build Markspresso site
+        run: |
+          # If needed, cd into subdir first
+          # cd path/to/site-root
+          lucli markspresso build clean
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs  # TODO: adjust if your output dir changes
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

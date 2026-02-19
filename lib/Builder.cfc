@@ -11,17 +11,20 @@ component {
         required any contentParser,
         required any fileService,
         required any navigationBuilder,
+        required any lunrSearch,
         string cwd = "",
         any timer = nullValue(),
         any outputCallback = nullValue()
     ) {
-        variables.configService = arguments.configService;
-        variables.contentParser = arguments.contentParser;
-        variables.fileService   = arguments.fileService;
+        variables.configService     = arguments.configService;
+        variables.contentParser     = arguments.contentParser;
+        variables.fileService       = arguments.fileService;
         variables.navigationBuilder = arguments.navigationBuilder;
-        variables.cwd           = arguments.cwd;
-        variables.timer         = arguments.timer ?: {};
-        variables.outputCallback = arguments.outputCallback;
+        variables.lunrSearch        = arguments.lunrSearch;
+        variables.feedGenerator     = new FeedGenerator(fileService = arguments.fileService);
+        variables.cwd               = arguments.cwd;
+        variables.timer             = arguments.timer ?: {};
+        variables.outputCallback    = arguments.outputCallback;
         
         return this;
     }
@@ -166,11 +169,17 @@ component {
         string outDir = "",
         boolean clean = false,
         boolean drafts = false,
-        string onlyRelPath = ""
+        string onlyRelPath = "",
+        boolean dev = false
     ) {
         var onlyRelPathLower = lcase(onlyRelPath);
         
-        out("Building site...");
+        if(dev){
+            out("Building --development-- site...");
+        }
+        else{
+            out("Building site...");
+        }
         if (structKeyExists(variables.timer, "start")) {
             variables.timer.start("markspresso-build");
         }
@@ -212,6 +221,12 @@ component {
         var docUrlMap       = {};
         var dirsWithIndex   = {};
 
+        // Tagging and archives indexes
+        // tagsIndex: tagKey -> { name = originalTagLabel, posts = [ { title, date, url } ] }
+        // archivesIndex: "YYYY-MM" -> [ { title, date, url } ]
+        var tagsIndex      = {};
+        var archivesIndex  = {};
+
         // Pre-scan for index.md per directory so we can treat README.md as index when needed
         for (var scanPath in files) {
             var scanName = lcase(getFileFromPath(scanPath));
@@ -245,41 +260,37 @@ component {
                 relPath = len(relDir) ? (relDir & "/index.md") : "index.md";
             }
 
-            var collectionName = findCollectionNameForRelPath(config, relPath);
+            // Use shared URL resolution helper so getUrlForContent can reuse logic
+            var urlInfo = resolveDocUrlInfo(
+                config  = config,
+                rootDir = rootDir,
+                relPath = relPath,
+                meta    = parsed.meta
+            );
 
-            var dateInfo = {};
-            if (len(collectionName) and collectionName == "posts") {
-                var relNoExt = reReplace(relPath, "\.[^.]+$", "");
-                dateInfo = deriveDateSlugFromRelPath(relNoExt);
-
-                if (structCount(dateInfo) and !structKeyExists(parsed.meta, "date")) {
-                    parsed.meta.date = dateInfo.year & "-" & dateInfo.month & "-" & dateInfo.day;
-                }
-            }
-
-            var layoutName = determineLayoutName(config, parsed.meta, collectionName);
+            var layoutName = determineLayoutName(config, parsed.meta, urlInfo.collectionName);
 
             var doc = {
                 filePath       = filePath,
                 relPath        = relPath,
-                collectionName = collectionName,
-                dateInfo       = dateInfo,
+                collectionName = urlInfo.collectionName,
+                dateInfo       = urlInfo.dateInfo,
                 meta           = parsed.meta,
                 html           = parsed.html,
                 layoutName     = layoutName,
-                canonicalUrl   = ""
+                canonicalUrl   = urlInfo.canonicalUrl
             };
 
-            var canonicalUrl = computeCanonicalUrl(outputDir, relPath, doc.meta, prettyUrls, collectionName, dateInfo);
-
-            doc.canonicalUrl = canonicalUrl;
-            if (len(canonicalUrl)) {
-                docUrlMap[lcase(relPath)] = canonicalUrl;
+            if (len(doc.canonicalUrl)) {
+                docUrlMap[lcase(relPath)] = doc.canonicalUrl;
             }
+            canonicalUrl = doc.canonicalUrl ?: "";
+            dateInfo     = urlInfo.dateInfo ?: {};
 
+            
             arrayAppend(docs, doc);
-
-            // Build posts collection
+            var collectionName = doc.collectionName;
+            // Build posts collection and tagging/archives indexes
             if (len(collectionName) and collectionName == "posts") {
                 var postDate = "";
                 if (structKeyExists(doc.meta, "date")) {
@@ -289,16 +300,58 @@ component {
                     postDate = dateInfo.year & "-" & dateInfo.month & "-" & dateInfo.day;
                 }
 
-                if (len(canonicalUrl) and len(postDate)) {
+                if (len(doc.canonicalUrl) and len(postDate)) {
                     var postTitle = (structKeyExists(doc.meta, "title") and len(doc.meta.title))
                         ? doc.meta.title
                         : (structCount(dateInfo) ? dateInfo.slug : relPath);
 
-                    arrayAppend(postsCollection, {
-                        title = postTitle,
-                        date  = postDate,
-                        url   = canonicalUrl
-                    });
+                    // Include description from front matter if available
+                    var postDescription = (structKeyExists(doc.meta, "description") and len(doc.meta.description))
+                        ? doc.meta.description
+                        : "";
+
+                    var postEntry = {
+                        title       = postTitle,
+                        date        = postDate,
+                        url         = canonicalUrl,
+                        description = postDescription,
+                        content     = doc.html
+                    };
+
+                    arrayAppend(postsCollection, postEntry);
+
+                    // --- Tags index ---
+                    if (structKeyExists(doc.meta, "tags") and len(doc.meta.tags)) {
+                        // Treat tags as a comma-separated string; split and trim.
+                        var tagsString = "" & doc.meta.tags;
+                        var tagsArray  = listToArray(tagsString, ",");
+
+                        for (var t in tagsArray) {
+                            var tagLabel = trim(t);
+                            if (!len(tagLabel)) {
+                                continue;
+                            }
+
+                            var tagKey = lcase(tagLabel);
+                            if (!structKeyExists(tagsIndex, tagKey)) {
+                                tagsIndex[tagKey] = {
+                                    name  = tagLabel,
+                                    posts = []
+                                };
+                            }
+
+                            arrayAppend(tagsIndex[tagKey].posts, postEntry);
+                        }
+                    }
+
+                    // --- Archives index (by YYYY-MM) ---
+                    if (len(postDate) GTE 7) {
+                        var archiveKey = left(postDate, 7); // e.g. 2025-01
+                        if (!structKeyExists(archivesIndex, archiveKey)) {
+                            archivesIndex[archiveKey] = [];
+                        }
+                        arrayAppend(archivesIndex[archiveKey], postEntry);
+                    }
                 }
             }
         }
@@ -313,6 +366,20 @@ component {
             });
         }
 
+        // Determine latest post document (for home page featured post tokens)
+        var latestPostDoc = nullValue();
+        if (arrayLen(postsCollection)) {
+            var latestPostUrl = postsCollection[1].url;
+            if (len(latestPostUrl)) {
+                for (var dDoc in docs) {
+                    if (structKeyExists(dDoc, "canonicalUrl") and dDoc.canonicalUrl == latestPostUrl) {
+                        latestPostDoc = dDoc;
+                        break;
+                    }
+                }
+            }
+        }
+        
         // Determine if index needs rebuilding for incremental builds
         var rebuildIndex = false;
         if (len(onlyRelPathLower)) {
@@ -323,9 +390,18 @@ component {
                 }
             }
         }
-
+        
+        // Build prev/next pagination map for docs subtree (if enabled via navigation.rootPath + navigation.pagination)
+        var docsPagination     = buildDocsPrevNextMap(config, docs);
+        var prevNextByRelLower = docsPagination.prevNextByRelLower;
+        var docsIndexRelLower  = docsPagination.docsIndexRelLower;
+        var firstDocsPage      = docsPagination.firstDocsPage;
+        
         // Second pass: render and write output files
         var builtCount = 0;
+
+        // Precompute Markspresso script tags (Lunr search, etc.) once per build
+        var markspressoScriptsHtml = variables.lunrSearch.getScriptHtml(config);
 
         for (var i = 1; i <= arrayLen(docs); i++) {
             var doc = docs[i];
@@ -342,11 +418,76 @@ component {
 
             var effectiveMeta = duplicate(doc.meta);
 
-            // Inject latest posts for index page
-            if (lcase(doc.relPath) == "index.md") {
-                var maxPosts = config.build.latestPostsCount;
-                effectiveMeta.latest_posts = arrayLen(postsCollection) ? renderLatestPostsHtml(postsCollection, maxPosts) : "";
+            // Inject global variables from config under a namespaced key like {{ globals.blogName }}
+            if (structKeyExists(config, "globals") and isStruct(config.globals)) {
+                for (var gKey in config.globals) {
+                    var gVal = config.globals[gKey];
+                    if (isSimpleValue(gVal)) {
+                        effectiveMeta["globals." & gKey] = gVal;
+                    }
+                }
             }
+
+            var relLower = lcase(doc.relPath);
+
+        // Inject docs prev/next pagination when available
+        if (structKeyExists(prevNextByRelLower, relLower)) {
+            var pn = prevNextByRelLower[relLower];
+
+            if (len(pn.prevUrl)) {
+                effectiveMeta.prev_url   = pn.prevUrl;
+                effectiveMeta.prev_title = pn.prevTitle;
+            }
+            if (len(pn.nextUrl)) {
+                effectiveMeta.next_url   = pn.nextUrl;
+                effectiveMeta.next_title = pn.nextTitle;
+            }
+        }
+        else if (len(docsIndexRelLower) and relLower == lcase(docsIndexRelLower) and structCount(firstDocsPage)) {
+            // For the docs index page (e.g. content/docs/index.md), only expose a "next" link
+            if (structKeyExists(firstDocsPage, "canonicalUrl") and len(firstDocsPage.canonicalUrl)) {
+                effectiveMeta.next_url = firstDocsPage.canonicalUrl;
+            }
+            if (structKeyExists(firstDocsPage, "title") and len(firstDocsPage.title)) {
+                effectiveMeta.next_title = firstDocsPage.title;
+            }
+        }
+
+        // Inject latest posts and featured post tokens for index page (site root index.md)
+        if (relLower == "index.md") {
+            var maxPosts = config.build.latestPostsCount;
+            effectiveMeta.latest_posts = arrayLen(postsCollection) ? renderLatestPostsHtml(postsCollection, maxPosts) : "";
+
+            // Expose the most recent post's front matter and content as post.* tokens
+            // e.g. {{ post.title }}, {{ post.date }}, {{ post.content }}, {{ post.url }}
+            if (!isNull(latestPostDoc)) {
+                // Copy all front matter keys under a post.* namespace
+                if (structKeyExists(latestPostDoc, "meta") and isStruct(latestPostDoc.meta)) {
+                    for (var pKey in latestPostDoc.meta) {
+                        var pVal = latestPostDoc.meta[pKey];
+                        if (isSimpleValue(pVal)) {
+                            effectiveMeta["post." & pKey] = pVal;
+                        }
+                    }
+                }
+
+                // Always expose content and URL
+                if (structKeyExists(latestPostDoc, "html")) {
+                    effectiveMeta["post.content"] = latestPostDoc.html;
+                }
+                if (structKeyExists(latestPostDoc, "canonicalUrl") and len(latestPostDoc.canonicalUrl)) {
+                    effectiveMeta["post.url"] = latestPostDoc.canonicalUrl;
+                }
+            }
+        }
+
+            // Make tags/archives/posts lists globally available so they can be used in any layout
+            effectiveMeta.tags_list = structCount(tagsIndex) ? renderTagsListHtml(tagsIndex, layoutsDir) : "";
+            effectiveMeta.archives_list = structCount(archivesIndex) ? renderArchivesListHtml(archivesIndex, layoutsDir) : "";
+            effectiveMeta.posts_list = arrayLen(postsCollection) ? renderPostsListHtml(postsCollection, layoutsDir) : "";
+
+            // Expose Markspresso-provided scripts (e.g. Lunr search) to layouts
+            effectiveMeta.markspressoScripts = markspressoScriptsHtml;
 
             // Inject navigation HTML
             var navRootPath = structKeyExists(config, "navigation") && structKeyExists(config.navigation, "rootPath") 
@@ -358,16 +499,56 @@ component {
                 rootPath = navRootPath
             );
 
-            var layoutPath = layoutsDir & "/" & doc.layoutName & ".html";
-            var layoutHtml = fileExists(layoutPath) ? fileRead(layoutPath, "UTF-8") : "{{ content }}";
+            // Make tags/archives/posts lists globally available so they can be used in any layout.
+            // These support CFML overrides in the active site's layouts directory.
+            effectiveMeta.tags_list = structCount(tagsIndex)
+                ? renderTagsListHtml(tagsIndex, layoutsDir)
+                : "";
 
-            // Resolve layout partial includes such as {{ include "partials/header.html" }}.
-            // Include paths are resolved relative to the layouts directory.
-            layoutHtml = resolveLayoutIncludes(layoutHtml, layoutsDir);
+            effectiveMeta.archives_list = structCount(archivesIndex)
+                ? renderArchivesListHtml(archivesIndex, layoutsDir)
+                : "";
+
+            effectiveMeta.posts_list = arrayLen(postsCollection)
+                ? renderPostsListHtml(postsCollection, layoutsDir)
+                : "";
+
+            // Determine layout base path and CFML/HTML variants
+            var layoutBasePath = layoutsDir & "/" & doc.layoutName;
+            var layoutCfmPath  = layoutBasePath & ".cfm";
+            var layoutHtmlPath = layoutBasePath & ".html";
 
             var rewrittenContent = variables.contentParser.rewriteLinks(doc.html, doc.relPath, docUrlMap);
+            var finalHtml = "";
 
-            var finalHtml = variables.contentParser.applyLayout(layoutHtml, effectiveMeta, rewrittenContent);
+            if (fileExists(layoutCfmPath)) {
+                // Use CFML layout override when present.
+                // First, process tokens/conditionals inside the content HTML itself
+                // so things like {{ latest_posts }} work when written in Markdown.
+                var processedContentOnly = variables.contentParser.applyLayout("{{ content }}", effectiveMeta, rewrittenContent);
+
+                finalHtml = renderWithCfmlLayout(
+                    overrideFilePath = layoutCfmPath,
+                    meta             = effectiveMeta,
+                    contentHtml      = processedContentOnly,
+                    config           = config,
+                    doc              = doc,
+                    postsCollection  = postsCollection,
+                    tagsIndex        = tagsIndex,
+                    archivesIndex    = archivesIndex,
+                    latestPostDoc    = latestPostDoc?:{}
+                );
+            }
+            else {
+                // Fallback to HTML layout with Markspresso token replacement
+                var layoutHtml = fileExists(layoutHtmlPath) ? fileRead(layoutHtmlPath, "UTF-8") : "{{ content }}";
+
+                // Resolve layout partial includes such as {{ include "partials/header.html" }}.
+                // Include paths are resolved relative to the layouts directory.
+                layoutHtml = resolveLayoutIncludes(layoutHtml, layoutsDir);
+
+                finalHtml = variables.contentParser.applyLayout(layoutHtml, effectiveMeta, rewrittenContent);
+            }
 
             var outPaths = computeOutputPathsForFile(
                 config,
@@ -379,15 +560,54 @@ component {
                 doc.dateInfo
             );
 
+            // If we're in dev mode, inject the refresh script tag before </body>
+            var htmlToWrite = finalHtml;
+            if (dev) {
+                htmlToWrite = injectDevRefreshScript(htmlToWrite);
+            }
+
             for (var outPath in outPaths) {
                 variables.fileService.ensureDir(getDirectoryFromPath(outPath));
-                fileWrite(outPath, finalHtml, "UTF-8");
+                fileWrite(outPath, htmlToWrite, "UTF-8");
             }
 
             builtCount++;
         }
 
         out("Built " & builtCount & " Markdown file(s) into " & outputDir);
+
+        // Build Lunr search index/assets if enabled
+        if (structKeyExists(config, "search") and structKeyExists(config.search, "lunr") and config.search.lunr.enabled) {
+            variables.lunrSearch.build(
+                config   = config,
+                docs     = docs,
+                outputDir = outputDir
+            );
+        }
+
+        // Generate RSS/Atom feeds for collections with feed.enabled
+        if (structKeyExists(config, "collections")) {
+            for (var colName in config.collections) {
+                var colConfig = config.collections[colName];
+                if (structKeyExists(colConfig, "feed") and colConfig.feed.enabled) {
+                    // Use postsCollection for "posts", extend for other collections as needed
+                    if (colName == "posts" and arrayLen(postsCollection)) {
+                        variables.feedGenerator.generateFeeds(
+                            config         = config,
+                            collectionName = colName,
+                            items          = postsCollection,
+                            outputDir      = outputDir
+                        );
+                        out("Generated feeds for '" & colName & "' collection");
+                    }
+                }
+            }
+        }
+
+        // In dev mode, ensure the auto-reload script is present and linked
+        if (dev) {
+            ensureDevRefresh(outputDir);
+        }
         
         if (structKeyExists(variables.timer, "stop")) {
             variables.timer.stop("markspresso-build");
@@ -397,7 +617,7 @@ component {
     /**
      * Watch content/layouts/assets and trigger incremental builds.
      */
-    public void function watchSite(numeric numberOfSeconds = 1) {
+    public void function watchSite(numeric numberOfSeconds = 1, boolean dev=false) {
         var rootDir = siteRoot();
         var config  = variables.configService.load(rootDir);
 
@@ -415,7 +635,11 @@ component {
         var prevLayoutSnapshot  = variables.fileService.snapshotFiles(layoutsDir);
         var prevAssetSnapshot   = variables.fileService.snapshotFiles(assetsDir);
 
-        buildSite();
+        buildSite(dev=arguments.dev);
+
+        if(dev){
+            createWatchMarkerFile(outputDir);
+        }
 
         while (true) {
             sleep(numberOfSeconds * 1000);
@@ -434,7 +658,10 @@ component {
 
             if (arrayLen(changedLayouts)) {
                 out(arrayLen(changedLayouts) & " layout change(s) detected – rebuilding full site...");
-                buildSite();
+                buildSite(dev=arguments.dev);
+                if(dev){
+                    createWatchMarkerFile(outputDir);
+                }
             }
             else {
                 if (arrayLen(changedAssets)) {
@@ -442,12 +669,18 @@ component {
                     if (directoryExists(assetsDir)) {
                         variables.fileService.copyAssets(assetsDir, outputDir);
                     }
+                    if(dev){
+                        createWatchMarkerFile(outputDir);
+                    }
                 }
 
                 for (var changedPath in changedContent) {
                     var relPath = replace(mid(changedPath, len(contentDir) + 2), "\\", "/", "all");
                     out("Content change detected: " & relPath & " – rebuilding...");
-                    buildSite(onlyRelPath = relPath);
+                    buildSite(onlyRelPath = relPath, dev=arguments.dev);
+                    if(dev){
+                        createWatchMarkerFile(outputDir);
+                    }
                 }
             }
 
@@ -455,6 +688,64 @@ component {
             prevLayoutSnapshot  = currentLayoutSnapshot;
             prevAssetSnapshot   = currentAssetSnapshot;
         }
+    }
+
+
+    /**
+     * Add a watchmarker file that we can check to reload
+     */
+
+    private void function createWatchMarkerFile(string outputDir){
+        var markerPath = outputDir & "/__markspresso_reload.json";
+        var buildInfo = {
+            "buildId" = createUUID(),
+            "builtAt" = now()
+        };
+        
+        fileWrite(
+            markerPath,
+            serializeJSON(buildInfo)
+        );
+        out("Updated watch file");
+    }
+
+    /**
+     * In dev/watch mode, ensure the refresh JS is available and referenced.
+     */
+    private void function ensureDevRefresh(string outputDir) {
+        // 1) Copy the utility JS into outputDir/js/markspresso-refresh.js
+        var jsDir   = outputDir & "/js";
+        var jsPath  = jsDir & "/markspresso-refresh.js";
+        var moduleRoot = getDirectoryFromPath( getCurrentTemplatePath() );
+        var srcJsPath  = moduleRoot & "/../resources/utility/markspresso-refresh.js";
+
+        variables.fileService.ensureDir(jsDir);
+        if (fileExists(srcJsPath)) {
+            fileCopy(srcJsPath, jsPath);
+        }
+    }
+
+    /**
+     * Inject the dev refresh script tag just before </body> if possible.
+     */
+    private string function injectDevRefreshScript(string html) {
+        var scriptTag = '<script src="/js/markspresso-refresh.js"></script>';
+
+        // Avoid duplicates
+        if (findNoCase(scriptTag, html)) {
+            return html;
+        }
+
+        var bodyClose = reFindNoCase("</body>", html, 1, true);
+
+        
+        if (isStruct(bodyClose) and bodyClose.len[1] GT 0) {
+            var pos = bodyClose.pos[1];
+            return insert( chr(10) & scriptTag & chr(10), html, pos - 1);
+        }
+
+        // Fallback: append at end
+        return html & chr(10) & scriptTag & chr(10);
     }
 
     /**
@@ -475,8 +766,9 @@ component {
         var targetDir = contentDir;
         var layout = config.build.defaultLayout;
         
-        if (structKeyExists(config.collections, type)) {
-            collectionConfig = config.collections[type];
+        var pluralizedPath = type & "s";
+        if (structKeyExists(config.collections, pluralizedPath)) {
+            collectionConfig = config.collections[pluralizedPath];
             if (structKeyExists(collectionConfig, "path") and len(collectionConfig.path)) {
                 targetDir = contentDir & "/" & collectionConfig.path;
             }
@@ -485,6 +777,7 @@ component {
             }
         }
         
+        echo("targetDir:#targetDir#")
         // Generate slug from title if not provided
         if (!len(slug) and len(title)) {
             slug = lcase(trim(title));
@@ -501,11 +794,14 @@ component {
         
         // For posts, use date prefix in filename
         var filename = slug & ".md";
-        if (type == "posts") {
+        if (type == "post") {
             var now = now();
             var datePart = dateFormat(now, "yyyy-mm-dd");
             filename = datePart & "-" & slug & ".md";
         }
+
+        // Filepath for posts is defined in the config. 
+        
         
         var filePath = targetDir & "/" & filename;
         
@@ -544,6 +840,66 @@ component {
         fileWrite(filePath, content, "UTF-8");
         
         out("Created " & type & ": " & filePath);
+    }
+
+/**
+     * Resolve the URL for a given content file under the content directory.
+     * relContentPath is a path like "posts/2025-12-30-managing-servers-with-lucli.md"
+     * relative to config.paths.content.
+     *
+     * If pathOnly=true, returns just the canonical path (e.g. "/posts/foo/").
+     * Otherwise returns baseUrl + canonical path when baseUrl is configured.
+     */
+    public string function getUrlForContent(string relContentPath, boolean pathOnly = false) {
+        var rootDir = siteRoot();
+        var config  = variables.configService.load(rootDir);
+
+        var contentDir = rootDir & "/" & config.paths.content;
+        relContentPath = replace(relContentPath, "\\", "/", "all");
+        var filePath   = contentDir & "/" & relContentPath;
+
+        if (!fileExists(filePath)) {
+            out("Content file not found: " & filePath);
+            return "";
+        }
+
+        // Only need front matter, not full markdown render
+        var raw      = fileRead(filePath, "UTF-8");
+        var parsedFM = variables.contentParser.parseFrontMatter(raw);
+        var meta     = parsedFM.meta;
+
+        var urlInfo = resolveDocUrlInfo(
+            config  = config,
+            rootDir = rootDir,
+            relPath = relContentPath,
+            meta    = meta
+        );
+
+        if (!len(urlInfo.canonicalUrl)) {
+            out("[markspresso:getUrlForContent] No canonical URL resolved for " & relContentPath & ", collection=" & urlInfo.collectionName);
+            return "";
+        }
+
+        var canonical = urlInfo.canonicalUrl;
+
+        if (arguments.pathOnly) {
+            return canonical;
+        }
+
+        // Prefix with baseUrl if present
+        var baseUrl = structKeyExists(config, "baseUrl") ? trim(config.baseUrl) : "";
+        if (!len(baseUrl)) {
+            return canonical;
+        }
+
+        while (len(baseUrl) and right(baseUrl, 1) == "/") {
+            baseUrl = left(baseUrl, len(baseUrl) - 1);
+        }
+        if (left(canonical, 1) != "/") {
+            canonical = "/" & canonical;
+        }
+
+        return baseUrl & canonical;
     }
 
     // --- Private Helper Functions ---
@@ -656,6 +1012,78 @@ component {
     }
 
     /**
+     * Render a CFML layout (e.g. layouts/post.cfm, layouts/page.cfm).
+     * Exposes content/meta/globals/doc/post/etc as local variables.
+     */
+    private string function renderWithCfmlLayout(
+        required string overrideFilePath,
+        required struct meta,
+        required string contentHtml,
+        required struct config,
+        required struct doc,
+        required array  postsCollection,
+        required struct tagsIndex,
+        required struct archivesIndex,
+        any latestPostDoc = nullValue()
+    ) {
+        var html = "";
+
+        // Primary data structures
+        var content = contentHtml;      // rendered Markdown for this document
+        var data    = meta;             // effective meta (front matter + injected fields)
+        var page    = doc;              // filePath, relPath, collectionName, etc.
+
+        // Markspresso-provided script tags (e.g. Lunr search bundle)
+        var markspressoScripts = structKeyExists(meta, "markspressoScripts") ? meta.markspressoScripts : "";
+
+        // Optional convenience aliases
+        var globals = structKeyExists(config, "globals") && isStruct(config.globals)
+            ? duplicate(config.globals)
+            : {};
+
+        // Always expose config.baseUrl to layouts via globals.baseUrl
+        if (structKeyExists(config, "baseUrl") and isSimpleValue(config.baseUrl)) {
+            globals.baseUrl = config.baseUrl;
+        }
+        var config   = arguments.config;
+        var posts    = postsCollection;
+        var tags     = tagsIndex;
+        var archives = archivesIndex;
+
+        // For posts collection items, expose a "post" struct
+        var post = {};
+        if (len(doc.collectionName) and doc.collectionName == "posts") {
+            post = duplicate(doc.meta);
+            post.content = contentHtml;
+            if (structKeyExists(doc, "canonicalUrl")) {
+                post.url = doc.canonicalUrl;
+            }
+        }
+
+        // Expose a full latestPost struct (front matter + content + url) when available
+        var latestPost = {};
+        if (!isNull(latestPostDoc)
+            and structKeyExists(latestPostDoc, "meta")
+            and isStruct(latestPostDoc.meta)) {
+
+            latestPost = duplicate(latestPostDoc.meta);
+
+            if (structKeyExists(latestPostDoc, "html")) {
+                latestPost.content = latestPostDoc.html;
+            }
+            if (structKeyExists(latestPostDoc, "canonicalUrl")) {
+                latestPost.url = latestPostDoc.canonicalUrl;
+            }
+        }
+
+        savecontent variable="html" {
+            include template="#contractPath(overrideFilePath)#";
+        }
+
+        return html;
+    }
+
+    /**
      * Strip numeric prefixes from path segments.
      * Example: "010_getting-started/020_intro.md" -> "getting-started/intro.md"
      */
@@ -685,12 +1113,69 @@ component {
         }
     }
 
+    /**
+     * Shared helper to resolve collectionName, dateInfo, and canonicalUrl
+     * for a document, given its relPath and meta. Used by buildSite and
+     * getUrlForContent to avoid duplicating URL rules.
+     */
+    private struct function resolveDocUrlInfo(
+        required struct config,
+        required string rootDir,
+        required string relPath,
+        required struct meta
+    ) {
+        var info = {
+            collectionName = "",
+            dateInfo       = {},
+            canonicalUrl   = ""
+        };
+
+        var collectionName = findCollectionNameForRelPath(config, relPath);
+
+        var dateInfo = {};
+        if (len(collectionName) and collectionName == "posts") {
+            var relNoExt = reReplace(relPath, "\.[^.]+$", "");
+            dateInfo = deriveDateSlugFromRelPath(relNoExt);
+
+            if (structCount(dateInfo) and !structKeyExists(meta, "date")) {
+                meta.date = dateInfo.year & "-" & dateInfo.month & "-" & dateInfo.day;
+            }
+        }
+
+        var outputDir  = rootDir & "/" & config.paths.output;
+        var prettyUrls = config.build.prettyUrls;
+
+        var canonicalUrl = computeCanonicalUrl(
+            outputDir      = outputDir,
+            relPath        = relPath,
+            meta           = meta,
+            prettyUrls     = prettyUrls,
+            collectionName = collectionName,
+            dateInfo       = dateInfo
+        );
+
+        info.collectionName = collectionName;
+        info.dateInfo       = dateInfo;
+        info.canonicalUrl   = canonicalUrl;
+
+        return info;
+    }
+
     private string function findCollectionNameForRelPath(struct config, string relPath) {
         if (!structKeyExists(config, "collections") or isNull(config.collections)) {
             return "";
         }
 
         var normalizedRel = replace(relPath, "\\", "/", "all");
+
+        // Get content path prefix to strip from collection paths if present
+        var contentPrefix = structKeyExists(config, "paths") && structKeyExists(config.paths, "content")
+            ? replace(config.paths.content, "\\", "/", "all")
+            : "";
+        // Ensure contentPrefix ends with / for comparison
+        if (len(contentPrefix) and right(contentPrefix, 1) != "/") {
+            contentPrefix = contentPrefix & "/";
+        }
 
         for (var name in config.collections) {
             var col = config.collections[name];
@@ -699,6 +1184,12 @@ component {
             }
 
             var colPath = replace(col.path, "\\", "/", "all");
+
+            // If collection path starts with content path prefix, strip it
+            // e.g. "content/posts" -> "posts" when content dir is "content"
+            if (len(contentPrefix) and left(colPath, len(contentPrefix)) == contentPrefix) {
+                colPath = mid(colPath, len(contentPrefix) + 1);
+            }
 
             if (left(normalizedRel, len(colPath)) == colPath
                 and (len(normalizedRel) == len(colPath) or mid(normalizedRel, len(colPath) + 1, 1) == "/")) {
@@ -815,7 +1306,13 @@ component {
             }
 
             if (len(permalink)) {
-                var permalinkPath = outputDir & "/" & permalink & "/index.html";
+                // If the permalink ends with an extension (e.g. ".xml"), treat it as a file path.
+                // Otherwise, use the existing /permalink/index.html convention.
+                var hasExt = listLen(listLast(permalink, "/"), ".") GT 1;
+                var permalinkPath = hasExt
+                    ? (outputDir & "/" & permalink)
+                    : (outputDir & "/" & permalink & "/index.html");
+
                 if (!structKeyExists(seen, permalinkPath)) {
                     seen[permalinkPath] = true;
                     arrayAppend(paths, permalinkPath);
@@ -847,6 +1344,14 @@ component {
             if (!len(p)) {
                 return "/";
             }
+
+            // If the permalink looks like a file (has an extension), return "/file.ext".
+            // Otherwise, treat it as a directory-style URL with trailing slash.
+            var hasExt = listLen(listLast(p, "/"), ".") GT 1;
+            if (hasExt) {
+                return "/" & p;
+            }
+
             return "/" & p & "/";
         }
 
@@ -877,6 +1382,202 @@ component {
         return path;
     }
 
+    /**
+     * Build prev/next pagination map for documents under navigation.rootPath.
+     * Returns { prevNextByRelLower = {}, docsIndexRelLower = "", firstDocsPage = {} }.
+     * Pagination is opt-in via config.navigation.pagination = true.
+     */
+    private struct function buildDocsPrevNextMap(required struct config, required array docs) {
+        var result = {
+            prevNextByRelLower = {},
+            docsIndexRelLower  = "",
+            firstDocsPage      = {}
+        };
+
+        if (!structKeyExists(config, "navigation") or isNull(config.navigation)) {
+            return result;
+        }
+
+        var nav = config.navigation;
+
+        if (!structKeyExists(nav, "rootPath") or !len(trim(nav.rootPath))) {
+            return result;
+        }
+
+        // Pagination is opt-in; default is disabled unless explicitly enabled
+        if (structKeyExists(nav, "pagination") and !nav.pagination) {
+            return result;
+        }
+
+        var root = replace(trim(nav.rootPath), "\\", "/", "all");
+
+        var reading          = [];
+        var docsIndexRelLower = "";
+
+        for (var doc in docs) {
+            if (!structKeyExists(doc, "relPath")) {
+                continue;
+            }
+
+            var rel = replace(doc.relPath, "\\", "/", "all");
+
+            // Only include docs under navigation.rootPath/
+            if (left(rel, len(root) + 1) != root & "/") {
+                continue;
+            }
+
+            var afterRoot = mid(rel, len(root) + 2);
+            if (!len(afterRoot)) {
+                continue;
+            }
+
+            var parts = listToArray(afterRoot, "/");
+            if (!arrayLen(parts)) {
+                continue;
+            }
+
+            // Treat docs index (e.g. docs/index.md) specially: we don't include it
+            // in the main reading order, but we remember it so we can link to the
+            // first docs page from the index.
+            if (arrayLen(parts) == 1 and lcase(parts[1]) == "index.md") {
+                docsIndexRelLower = lcase(doc.relPath);
+                continue;
+            }
+
+            // Ignore deeper nesting beyond two levels for pagination
+            if (arrayLen(parts) > 2) {
+                continue;
+            }
+
+            var folderName  = "";
+            var fileName    = "";
+            var folderOrder = 0;
+            var fileOrder   = 0;
+
+            if (arrayLen(parts) == 1) {
+                fileName    = parts[1];
+                folderOrder = 0;
+            }
+            else {
+                folderName  = parts[1];
+                fileName    = parts[2];
+                folderOrder = extractNumericPrefixForDocs(folderName);
+            }
+
+            fileOrder = extractNumericPrefixForDocs(fileName);
+
+            var title = "";
+            if (structKeyExists(doc, "meta") and structKeyExists(doc.meta, "title") and len(doc.meta.title)) {
+                title = doc.meta.title;
+            }
+            else {
+                title = deriveTitleFromNameForDocs(fileName);
+            }
+
+            arrayAppend(reading, {
+                relPath      = doc.relPath,
+                canonicalUrl = (structKeyExists(doc, "canonicalUrl") ? (doc.canonicalUrl ?: "") : ""),
+                title        = title,
+                folderName   = folderName,
+                fileName     = fileName,
+                folderOrder  = folderOrder,
+                fileOrder    = fileOrder
+            });
+        }
+
+        if (!arrayLen(reading)) {
+            return result;
+        }
+
+        if (arrayLen(reading) > 1) {
+            arraySort(reading, function(a, b) {
+                if (a.folderOrder != b.folderOrder) {
+                    return compare(a.folderOrder, b.folderOrder);
+                }
+                if (a.folderName != b.folderName) {
+                    return compare(a.folderName, b.folderName);
+                }
+                if (a.fileOrder != b.fileOrder) {
+                    return compare(a.fileOrder, b.fileOrder);
+                }
+                return compare(a.fileName, b.fileName);
+            });
+        }
+
+        var prevNext = {};
+
+        for (var i = 1; i <= arrayLen(reading); i++) {
+            var current   = reading[i];
+            var relLower  = lcase(current.relPath);
+            var prevUrl   = "";
+            var prevTitle = "";
+            var nextUrl   = "";
+            var nextTitle = "";
+
+            if (i > 1) {
+                var p = reading[i - 1];
+                prevUrl   = p.canonicalUrl;
+                prevTitle = p.title;
+            }
+
+            if (i < arrayLen(reading)) {
+                var n = reading[i + 1];
+                nextUrl   = n.canonicalUrl;
+                nextTitle = n.title;
+            }
+
+            prevNext[relLower] = {
+                prevUrl   = prevUrl,
+                prevTitle = prevTitle,
+                nextUrl   = nextUrl,
+                nextTitle = nextTitle
+            };
+        }
+
+        result.prevNextByRelLower = prevNext;
+        result.docsIndexRelLower  = docsIndexRelLower;
+        result.firstDocsPage      = reading[1];
+
+        return result;
+    }
+
+    /**
+     * Extract numeric prefix for docs (1–4 digits + underscore). Falls back to 9999.
+     */
+    private numeric function extractNumericPrefixForDocs(string name) {
+        var matches = reMatch("^(\\d{1,4})_", arguments.name);
+        if (arrayLen(matches)) {
+            return val(matches[1]);
+        }
+        return 9999;
+    }
+
+    /**
+     * Derive a human-readable title from a docs filename, similar to NavigationBuilder.
+     */
+    private string function deriveTitleFromNameForDocs(string name) {
+        var clean = arguments.name;
+
+        // Remove numeric prefix and extension
+        clean = reReplace(clean, "^(\\d{1,4})_", "");
+        clean = reReplace(clean, "\\.[^.]+$", "");
+
+        // Replace separators with spaces
+        clean = replace(clean, "-", " ", "all");
+        clean = replace(clean, "_", " ", "all");
+
+        var words = listToArray(clean, " ");
+        var titleWords = [];
+        for (var word in words) {
+            if (len(word)) {
+                var titleWord = uCase(left(word, 1)) & lCase(mid(word, 2));
+                arrayAppend(titleWords, titleWord);
+            }
+        }
+
+        return arrayToList(titleWords, " ");
+    }
+
     private string function renderLatestPostsHtml(array posts, numeric maxCount=5) {
         var html = '<ul>';
 
@@ -891,6 +1592,115 @@ component {
             }
 
             html &= '<li><a href="' & htmlEditFormat(postUrl) & '">' & htmlEditFormat(postTitle) & '</a></li>';
+        }
+
+        html &= '</ul>';
+        return html;
+    }
+
+    /**
+     * Render a site-wide tags list as HTML.
+     * tagsIndex: tagKey -> { name, posts = [ { title, date, url } ] }
+     * If layouts/tags_list.cfm exists in the active site, that CFML template
+     * is used instead and receives a single argument: tagsIndex.
+     */
+    private string function renderTagsListHtml(struct tagsIndex, string layoutsDir) {
+        var overrideFilePath = layoutsDir & "/lists/tags_list.cfm";
+
+        if (fileExists(overrideFilePath)) {
+            savecontent variable="html" {
+                include template="#contractPath(overrideFilePath)#";
+            }
+            return html;
+        }
+
+        var html = '<ul class="tags-list">';
+
+        var tagKeys = structKeyArray(tagsIndex);
+        // Sort tag keys alphabetically, case-insensitive
+        arraySort(tagKeys, "textNoCase", "asc");
+
+        for (var i = 1; i <= arrayLen(tagKeys); i++) {
+            var key    = tagKeys[i];
+            var entry  = tagsIndex[key];
+            var label  = structKeyExists(entry, "name") ? entry.name : key;
+            var posts  = structKeyExists(entry, "posts") ? entry.posts : [];
+            var count  = arrayLen(posts);
+
+            html &= '<li class="tags-list__item">' & htmlEditFormat(label) & ' (' & count & ')</li>';
+        }
+
+        html &= '</ul>';
+        return html;
+    }
+
+    /**
+     * Render a date archives list as HTML.
+     * archivesIndex: "YYYY-MM" -> [ { title, date, url } ]
+     * If layouts/archives_list.cfm exists in the active site, that CFML
+     * template is used instead and receives a single argument: archivesIndex.
+     */
+    private string function renderArchivesListHtml(struct archivesIndex, string layoutsDir) {
+        var overrideFilePath = layoutsDir & "/lists/archives_list.cfm";
+
+        if (fileExists(overrideFilePath)) {
+            savecontent variable="html" {
+                include template="#contractPath(overrideFilePath)#";
+            }
+            return html;
+        }
+
+        var html = '<ul class="archives-list">';
+
+        var keys = structKeyArray(archivesIndex);
+        // Sort archive keys (e.g. YYYY-MM) so newest month appears first
+        arraySort(keys, "textNoCase", "desc");
+
+        for (var i = 1; i <= arrayLen(keys); i++) {
+            var key   = keys[i];
+            var posts = archivesIndex[key];
+            var count = arrayLen(posts);
+
+            html &= '<li class="archives-list__item">' & htmlEditFormat(key) & ' (' & count & ')</li>';
+        }
+
+        html &= '</ul>';
+        return html;
+    }
+
+/**
+     * Render a full posts list, e.g. for /posts index pages.
+     * If layouts/posts_list.cfm exists in the active site, that CFML template
+     * is used instead and receives a single argument: posts (array).
+     */
+    private string function renderPostsListHtml(array posts, string layoutsDir) {
+        var overrideFilePath = layoutsDir & "/lists/posts_list.cfm";
+
+        if (fileExists(overrideFilePath)) {
+            savecontent variable="html" {
+                include template="#contractPath(overrideFilePath)#";
+            }
+            return html;
+        }
+
+        var html = '<ul class="posts-list">';
+
+        for (var i = 1; i <= arrayLen(posts); i++) {
+            var p = posts[i];
+            var postTitle = structKeyExists(p, "title") ? p["title"] : "";
+            var postUrl   = structKeyExists(p, "url") ? p["url"] : "";
+            var postDate  = structKeyExists(p, "date") ? p["date"] : "";
+
+            if (!len(postUrl)) {
+                continue;
+            }
+
+            html &= '<li class="posts-list__item">';
+            html &= '<a href="' & htmlEditFormat(postUrl) & '">' & htmlEditFormat(postTitle) & '</a>';
+            if (len(postDate)) {
+                html &= ' <span class="post-date">' & htmlEditFormat(postDate) & '</span>';
+            }
+            html &= '</li>';
         }
 
         html &= '</ul>';

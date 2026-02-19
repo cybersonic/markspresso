@@ -86,6 +86,27 @@ Key fields:
 - `build.includeDrafts` – global default for including `draft: true` content (overridden by the `drafts` flag).
 - `build.latestPostsCount` – number of recent posts to show in the `{{ latest_posts }}` token (default: 5).
 - `collections.posts` – example collection for blog posts; defines a subdirectory (`path`), default layout, and permalink pattern.
+- `globals` – optional key/value map of site-wide variables available in layouts.
+
+### Globals
+
+You can define global variables under a top-level `globals` object in `markspresso.json`. These values are injected into every layout using a simple namespaced token:
+
+```json
+{
+  "globals": {
+    "blogName": "My Blog",
+    "tagline": "Thoughts on CFML and more"
+  }
+}
+```
+
+In your layout templates, reference them using `globals.*` tokens:
+
+```html
+<title>{{ globals.blogName }}</title>
+<p>{{ globals.tagline }}</p>
+```
 
 ### Navigation configuration
 

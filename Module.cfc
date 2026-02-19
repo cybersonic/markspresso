@@ -15,16 +15,19 @@ component extends="modules.BaseModule" {
         string cwd = "",
         any timer = nullValue()
     ) {
+        super.init(argumentCollection=arguments);
+        
         variables.verboseEnabled = arguments.verboseEnabled;
         variables.timingEnabled = arguments.timingEnabled;
         variables.cwd           = arguments.cwd;
         variables.timer         = arguments.timer ?: {};
 
         // Initialize services
-        variables.configService = new lib.ConfigService();
-        variables.contentParser = new lib.ContentParser();
-        variables.fileService   = new lib.FileService();
+        variables.configService     = new lib.ConfigService();
+        variables.contentParser     = new lib.ContentParser();
+        variables.fileService       = new lib.FileService();
         variables.navigationBuilder = new lib.NavigationBuilder();
+        variables.lunrSearch        = new lib.LunrSearch(fileService = variables.fileService);
         
         // Initialize builder with dependencies
         variables.builder = new lib.Builder(
@@ -32,6 +35,7 @@ component extends="modules.BaseModule" {
             contentParser      = variables.contentParser,
             fileService        = variables.fileService,
             navigationBuilder  = variables.navigationBuilder,
+            lunrSearch         = variables.lunrSearch,
             cwd                = variables.cwd,
             timer              = variables.timer,
             outputCallback     = nullValue()
@@ -92,14 +96,16 @@ component extends="modules.BaseModule" {
         string outDir = "",
         boolean clean = false,
         boolean drafts = false,
-        string onlyRelPath = ""
+        string onlyRelPath = "",
+        boolean dev = false
     ) {
         return variables.builder.buildSite(
             src         = src,
             outDir      = outDir,
             clean       = clean,
             drafts      = drafts,
-            onlyRelPath = onlyRelPath
+            onlyRelPath = onlyRelPath,
+            dev         = dev
         );
     }
 
@@ -123,9 +129,10 @@ component extends="modules.BaseModule" {
     }
 
     function watch(
-        numeric numberOfSeconds = 1
+        numeric numberOfSeconds = 1,
+        boolean dev=false
     ) {
-        return variables.builder.watchSite(numberOfSeconds = numberOfSeconds);
+        return variables.builder.watchSite(numberOfSeconds = arguments.numberOfSeconds, dev=arguments.dev);
     }
 
     /**
@@ -162,6 +169,31 @@ component extends="modules.BaseModule" {
             drafts   = drafts,
             toc      = toc
         );
+/**
+     * lucli markspresso geturl content=posts/2025-12-30-managing-servers-with-lucli.md [pathOnly=true]
+     *
+     * Resolves the URL for a given content file relative to the configured
+     * content directory.
+     *
+     * When pathOnly=true, prints just the canonical path (e.g. "/posts/foo/").
+     * Otherwise prints baseUrl + canonical path when baseUrl is configured.
+     */
+    public void function geturl(string content = "", boolean pathOnly = false) {
+        if (!len(content)) {
+            out("Error: content path is required, e.g. content=posts/2025-12-30-managing-servers-with-lucli.md");
+            return;
+        }
+
+        var url = variables.builder.getUrlForContent(
+            relContentPath = content,
+            pathOnly       = arguments.pathOnly
+        );
+        if (!len(url)) {
+            out("Could not resolve URL for " & content);
+            return;
+        }
+
+        out(url);
     }
 
     // --- Helper Functions ---

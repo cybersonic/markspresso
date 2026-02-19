@@ -102,3 +102,29 @@ CLI flags can temporarily override configuration values:
 - `lucli markspresso build --out=dist` – write HTML into `dist/`
 
 These do not modify `markspresso.json`; they just affect the current build.
+
+### Search and Lunr
+
+Markspresso can generate a client-side search index for your site and wire it up to a [Lunr.js](https://lunrjs.com/) search UI. This is controlled via the optional `search` block in `markspresso.json`:
+
+```json
+{
+  "search": {
+    "lunr": {
+      "enabled": true,
+      "dataJs": "js/markspresso-search-data.js",
+      "searchJs": "js/markspresso-search.js"
+    }
+  }
+}
+```
+
+When `search.lunr.enabled` is `true`:
+
+- The Markspresso build will scan all generated documents, extract plain-text content and titles, and write a JSON-backed data file to the `search.lunr.dataJs` location (relative to your `paths.output` directory). This file defines `window.MarkspressoSearchDocs` – an array of `{ url, title, body }` objects.
+- The bundled `resources/utility/markspresso-search.js` script is copied to `search.lunr.searchJs` under your output directory and loaded via `{{ markspressoScripts }}` in your layout.
+- The browser script will automatically load [Lunr.js](https://lunrjs.com/) from the CDN (`https://unpkg.com/lunr/lunr.js`), build an in-memory index from `window.MarkspressoSearchDocs`, and wire up a simple search UI.
+
+You can customize the output locations by changing `search.lunr.dataJs` and `search.lunr.searchJs` if you want to serve the search assets from a different directory.
+
+On the layout side, the search scripts are exposed via a `markspressoScripts` token/variable – see [Search UI and `markspressoScripts`](./040_layouts-and-partials.md#search-ui-and-markspressoscripts) for how to add the corresponding `<input>` and results container to your templates.
