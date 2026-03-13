@@ -36,7 +36,7 @@ component {
      */
     public void function createSite(
         string  name    = "Markspresso Site",
-        string  baseUrl = "http://localhost:8080",
+        string  baseUrl = "http://localhost:3456",
         boolean force   = false
     ) {
         var rootDir    = siteRoot();
@@ -80,11 +80,15 @@ component {
 
         // Write lucee.json for LuCLI server
         var luceeConfigPath = rootDir & "/lucee.json";
+        var nameSlug = lcase(trim(name));
+        nameSlug = reReplace(nameSlug, "[^a-z0-9]+", "-", "all");
+        nameSlug = reReplace(nameSlug, "^-+|-+$", "", "all");
         var luceeConfig = {
-            "name": name,
+            "name": nameSlug,
             "webroot": "./" & config.paths.output,
             "openBrowser": true,
-            "enableLucee": false
+            "enableLucee": false,
+            "port": 3456
         };
         variables.fileService.writeFileIfMissing(luceeConfigPath, serializeJson(var = luceeConfig, compact = false), force);
 
@@ -115,20 +119,26 @@ component {
                          '    <meta charset="utf-8">' & chr(10) &
                          '    <title>{{ title }}</title>' & chr(10) &
                          '    <style>' & chr(10) &
-                         '      body { display: flex; margin: 0; font-family: sans-serif; }' & chr(10) &
-                         '      .docs-nav { width: 250px; padding: 1rem; background: ##f5f5f5; border-right: 1px solid ##ddd; }' & chr(10) &
+                         '      body { margin: 0; font-family: sans-serif; }' & chr(10) &
+                         '      .site-wrapper { display: flex; min-height: 100vh; }' & chr(10) &
+                         '      .docs-nav { width: 250px; padding: 1rem; background: ##f5f5f5; border-right: 1px solid ##ddd; flex-shrink: 0; }' & chr(10) &
                          '      .docs-nav ul { list-style: none; padding-left: 0; }' & chr(10) &
                          '      .docs-nav ul ul { padding-left: 1rem; }' & chr(10) &
                          '      .docs-nav li.active > a { font-weight: bold; color: ##0066cc; }' & chr(10) &
+                         '      .content-area { flex: 1; display: flex; flex-direction: column; }' & chr(10) &
                          '      main { flex: 1; padding: 2rem; max-width: 900px; }' & chr(10) &
                          '    </style>' & chr(10) &
                          '  </head>' & chr(10) &
                          '  <body>' & chr(10) &
-                         '    {{ include "partials/header.html" }}' & chr(10) &
-                         '    <main>' & chr(10) &
-                         '      {{ content }}' & chr(10) &
-                         '    </main>' & chr(10) &
-                         '    {{ include "partials/footer.html" }}' & chr(10) &
+                         '    <div class="site-wrapper">' & chr(10) &
+                         '      {{ include "partials/header.html" }}' & chr(10) &
+                         '      <div class="content-area">' & chr(10) &
+                         '        <main>' & chr(10) &
+                         '          {{ content }}' & chr(10) &
+                         '        </main>' & chr(10) &
+                         '        {{ include "partials/footer.html" }}' & chr(10) &
+                         '      </div>' & chr(10) &
+                         '    </div>' & chr(10) &
                          '  </body>' & chr(10) &
                          '</html>' & chr(10);
         variables.fileService.writeFileIfMissing(layoutsDir & "/page.html", pageLayout, force);
@@ -139,21 +149,27 @@ component {
                          '    <meta charset="utf-8">' & chr(10) &
                          '    <title>{{ title }}</title>' & chr(10) &
                          '    <style>' & chr(10) &
-                         '      body { display: flex; margin: 0; font-family: sans-serif; }' & chr(10) &
-                         '      .docs-nav { width: 250px; padding: 1rem; background: ##f5f5f5; border-right: 1px solid ##ddd; }' & chr(10) &
+                         '      body { margin: 0; font-family: sans-serif; }' & chr(10) &
+                         '      .site-wrapper { display: flex; min-height: 100vh; }' & chr(10) &
+                         '      .docs-nav { width: 250px; padding: 1rem; background: ##f5f5f5; border-right: 1px solid ##ddd; flex-shrink: 0; }' & chr(10) &
                          '      .docs-nav ul { list-style: none; padding-left: 0; }' & chr(10) &
                          '      .docs-nav ul ul { padding-left: 1rem; }' & chr(10) &
                          '      .docs-nav li.active > a { font-weight: bold; color: ##0066cc; }' & chr(10) &
+                         '      .content-area { flex: 1; display: flex; flex-direction: column; }' & chr(10) &
                          '      article { flex: 1; padding: 2rem; max-width: 900px; }' & chr(10) &
                          '    </style>' & chr(10) &
                          '  </head>' & chr(10) &
                          '  <body>' & chr(10) &
-                         '    {{ include "partials/header.html" }}' & chr(10) &
-                         '    <article>' & chr(10) &
-                         '      <h1>{{ title }}</h1>' & chr(10) &
-                         '      {{ content }}' & chr(10) &
-                         '    </article>' & chr(10) &
-                         '    {{ include "partials/footer.html" }}' & chr(10) &
+                         '    <div class="site-wrapper">' & chr(10) &
+                         '      {{ include "partials/header.html" }}' & chr(10) &
+                         '      <div class="content-area">' & chr(10) &
+                         '        <article>' & chr(10) &
+                         '          <h1>{{ title }}</h1>' & chr(10) &
+                         '          {{ content }}' & chr(10) &
+                         '        </article>' & chr(10) &
+                         '        {{ include "partials/footer.html" }}' & chr(10) &
+                         '      </div>' & chr(10) &
+                         '    </div>' & chr(10) &
                          '  </body>' & chr(10) &
                          '</html>' & chr(10);
         variables.fileService.writeFileIfMissing(layoutsDir & "/post.html", postLayout, force);
@@ -164,7 +180,7 @@ component {
     /**
      * Build the site into the output directory.
      */
-    public void function buildSite(
+    public string function buildSite(
         string src    = "",
         string outDir = "",
         boolean clean = false,
@@ -612,6 +628,8 @@ component {
         if (structKeyExists(variables.timer, "stop")) {
             variables.timer.stop("markspresso-build");
         }
+
+        return "Site Built";
     }
 
     /**
@@ -766,8 +784,12 @@ component {
         var targetDir = contentDir;
         var layout = config.build.defaultLayout;
         
+        // "post" -> "posts", "doc" -> "docs", etc.
         var pluralizedPath = type & "s";
-        if (structKeyExists(config.collections, pluralizedPath)) {
+        var isKnownType = (type == "post" or type == "page" or type == "doc");
+        var hasCollection = structKeyExists(config.collections, pluralizedPath);
+        
+        if (hasCollection) {
             collectionConfig = config.collections[pluralizedPath];
             if (structKeyExists(collectionConfig, "path") and len(collectionConfig.path)) {
                 targetDir = contentDir & "/" & collectionConfig.path;
@@ -775,6 +797,10 @@ component {
             if (structKeyExists(collectionConfig, "layout") and len(collectionConfig.layout)) {
                 layout = collectionConfig.layout;
             }
+        } else if (!isKnownType) {
+            out("Error: no '" & pluralizedPath & "' collection configured in markspresso.json");
+            out("Available collections: " & structKeyList(config.collections, ", "));
+            return;
         }
         
         echo("targetDir:#targetDir#")
@@ -820,7 +846,7 @@ component {
         }
         frontMatter &= "layout: " & layout & chr(10);
         
-        if (type == "posts") {
+        if (type == "post") {
             var now = now();
             frontMatter &= "date: " & dateFormat(now, "yyyy-mm-dd") & chr(10);
             frontMatter &= "draft: true" & chr(10);

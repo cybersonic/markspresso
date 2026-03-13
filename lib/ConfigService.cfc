@@ -84,7 +84,7 @@ component {
     /**
      * Get a default scaffold config with the given name and baseUrl.
      */
-    public struct function getDefaultConfig(string name = "Markspresso Site", string baseUrl = "http://localhost:8080") {
+    public struct function getDefaultConfig(string name = "Markspresso Site", string baseUrl = "http://localhost:3456") {
         return {
             "name"    : name,
             "baseUrl" : baseUrl,

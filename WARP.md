@@ -33,7 +33,7 @@ The module exposes the following subcommands, all rooted at the current working 
 - **Scaffold a new site**
 
   ```bash
-  lucli markspresso create [--name="My Site"] [--baseUrl=http://localhost:8080] [--force]
+  lucli markspresso create [--name="My Site"] [--baseUrl=http://localhost:3456] [--force]
   ```
 
   Creates a `markspresso.json` config plus starter `content/`, `layouts/`, `assets/`, and `public/` directories in the current directory. `--force` allows overwriting existing files like `markspresso.json` and starter content.
@@ -49,7 +49,7 @@ The module exposes the following subcommands, all rooted at the current working 
 - **Serve the built site**
 
   ```bash
-  lucli markspresso serve [--port=8080] [--watch]
+  lucli markspresso serve [--port=3456] [--watch]
   ```
 
   Intended to serve the `public/` directory over HTTP on the given port, optionally watching for changes. The current implementation is a stub; add the actual HTTP server and file-watching logic inside `serve()`.

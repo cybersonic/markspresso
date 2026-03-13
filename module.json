@@ -1,6 +1,6 @@
 {
   "name": "markspresso",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A static site generator module for Lucli.",
   "author": "Mark Drew",
   "license": "MIT",
@@ -8,12 +8,17 @@
   "main": "Module.cfc",
   "created": "2025-11-28T22:08:53.982400Z",
   "configuration": {
-  "extensions": [
-      {
-        "id": "66E312DD-D083-27C0-64189D16753FD6F0",
-        "name": "PDF Extension for Jakarta EE (Lucee 7+)",
-        "version": "2.0.0.2"
-      }
-    ]
+    "extensions": [
+        {
+          "id": "66E312DD-D083-27C0-64189D16753FD6F0",
+          "name": "PDF Extension for Jakarta EE (Lucee 7+)",
+          "version": "2.0.0.2"
+        },
+        {
+          "id": "37C61C0A-5D7E-4256-8572639BE0CF5838",
+          "name": "Guard Security Suite for Lucee Server",
+          "version": "2.6.0.1"
+        }
+      ]
   }
 }

@@ -5,8 +5,11 @@ component extends="modules.BaseModule" {
      * Subcommands:
      *   lucli markspresso create
      *   lucli markspresso build
+     *   lucli markspresso watch
      *   lucli markspresso serve
      *   lucli markspresso new
+     *   lucli markspresso pdf
+     *   lucli markspresso geturl
      */
 
     function init(
@@ -57,11 +60,13 @@ component extends="modules.BaseModule" {
         out("Markspresso – brew static sites from Markdown.");
         out("");
         out("Usage:");
-        out("  lucli markspresso create      ## scaffold a new site in current dir");
-        out("  lucli markspresso build       ## build Markdown -> HTML into public/");
-        out("  lucli markspresso watch       ## watch for changes and auto-rebuild");
-        out("  lucli markspresso serve       ## serve public/ over HTTP");
-        out("  lucli markspresso new post …  ## create new content");
+        out("  lucli markspresso create        ## scaffold a new site in current dir");
+        out("  lucli markspresso build         ## build Markdown -> HTML into public/");
+        out("  lucli markspresso watch         ## watch for changes and auto-rebuild");
+        out("  lucli markspresso serve         ## serve public/ over HTTP");
+        out("  lucli markspresso new <type>    ## create new content (post, page, or configured collection)");
+        out("  lucli markspresso pdf           ## generate PDF from docs collection");
+        out("  lucli markspresso geturl        ## resolve the URL for a content file");
         return;
     }
 
@@ -77,7 +82,7 @@ component extends="modules.BaseModule" {
      */
     function create(
         string  name    = "Markspresso Site",
-        string  baseUrl = "http://localhost:8080",
+        string  baseUrl = "http://localhost:3456",
         boolean force   = false
     ) {
         return variables.builder.createSite(
@@ -111,17 +116,16 @@ component extends="modules.BaseModule" {
 
     /**
      * lucli markspresso serve
-     *   --port=8080 --watch
+     *   --port=3456 --watch
      */
     function serve(
-        numeric port = 8080,
-        boolean watch = false
+        numeric port = 3456
     ) {
 
+        
+        out("Serving site on http://localhost:" & port);
+        executeCommand("server", ["start", "--port=" & port]);
         // this can be done via executomeCommand("serve",  []);
-
-        verbose("Serving site on http://localhost:" & port);
-
         // 1. Start a simple HTTP server rooted at public/
         // 2. If watch=true, monitor content/ and layouts/ and trigger build on changes
 
@@ -138,6 +142,10 @@ component extends="modules.BaseModule" {
     /**
      * lucli markspresso new post "hello-world"
      * lucli markspresso new page about
+     * lucli markspresso new doc "getting-started"
+     *
+     * The type can be "post", "page", or any collection key (singular form)
+     * defined in markspresso.json (e.g. "doc" if a "docs" collection is configured).
      */
     function new(
         string type = "",
@@ -164,13 +172,13 @@ component extends="modules.BaseModule" {
         boolean toc     = true
     ) {
         return variables.pdfBuilder.buildPdf(
-            rootPath = rootPath,
-            outFile  = outFile,
-            drafts   = drafts,
-            toc      = toc
+            rootPath = arguments.rootPath,
+            outFile  = arguments.outFile,
+            drafts   = arguments.drafts,
+            toc      = arguments.toc
         );
     }
-/**
+    /**
      * lucli markspresso geturl content=posts/2025-12-30-managing-servers-with-lucli.md [pathOnly=true]
      *
      * Resolves the URL for a given content file relative to the configured
@@ -178,9 +186,9 @@ component extends="modules.BaseModule" {
      *
      * When pathOnly=true, prints just the canonical path (e.g. "/posts/foo/").
      * Otherwise prints baseUrl + canonical path when baseUrl is configured.
-     */
+    */
     public void function geturl(string content = "", boolean pathOnly = false) {
-        if (!len(content)) {
+        if (!len(arguments.content)) {
             out("Error: content path is required, e.g. content=posts/2025-12-30-managing-servers-with-lucli.md");
             return;
         }
@@ -200,16 +208,16 @@ component extends="modules.BaseModule" {
     // --- Helper Functions ---
 
     function out(any message) {
-        if (!isSimpleValue(message)) {
-            message = serializeJson(var = message, compact = false);
+        if (!isSimpleValue(arguments.message)) {
+            arguments.message = serializeJson(var = arguments.message, compact = false);
         }
         // Keep direct CLI output available from Module for top-level commands.
-        systemOutput(message, true, false);
+        systemOutput(arguments.message, true, false);
     }
 
     function verbose(any message) {
         if (variables.verboseEnabled) {
-            out(message);
+            out(arguments.message);
         }
     }
 

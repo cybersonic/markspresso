@@ -20,7 +20,7 @@ From an empty or existing project directory:
 
 ```bash
 # 1. Scaffold a new Markspresso site in the current directory
-lucli markspresso create name="My Site" baseUrl=http://localhost:8080
+lucli markspresso create name="My Site" baseUrl=http://localhost:3456
 
 # 2. Build Markdown content into HTML under public/
 lucli markspresso build clean
@@ -50,7 +50,7 @@ A typical config looks like:
 ```json
 {
   "name": "My Site",
-  "baseUrl": "http://localhost:8080",
+  "baseUrl": "http://localhost:3456",
   "paths": {
     "content": "content",
     "layouts": "layouts",
@@ -151,7 +151,7 @@ Prints a short description plus a summary of available subcommands.
 Scaffolds a Markspresso site in the current working directory.
 
 ```bash
-lucli markspresso create [name="My Site"] [baseUrl=http://localhost:8080] [force]
+lucli markspresso create [name="My Site"] [baseUrl=http://localhost:3456] [force]
 ```
 
 - `name` – human-readable site name used in starter content.
