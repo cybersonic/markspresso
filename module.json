@@ -1,6 +1,6 @@
 {
   "name": "markspresso",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A static site generator module for Lucli.",
   "author": "Mark Drew",
   "license": "MIT",
