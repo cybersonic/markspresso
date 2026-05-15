@@ -31,6 +31,7 @@ component extends="modules.BaseModule" {
         variables.fileService       = new lib.FileService();
         variables.navigationBuilder = new lib.NavigationBuilder();
         variables.lunrSearch        = new lib.LunrSearch(fileService = variables.fileService);
+        variables.socialImageBuilder = new lib.SocialImageBuilder(fileService = variables.fileService);
         
         // Initialize builder with dependencies
         variables.builder = new lib.Builder(
@@ -39,6 +40,7 @@ component extends="modules.BaseModule" {
             fileService        = variables.fileService,
             navigationBuilder  = variables.navigationBuilder,
             lunrSearch         = variables.lunrSearch,
+            socialImageBuilder = variables.socialImageBuilder,
             cwd                = variables.cwd,
             timer              = variables.timer,
             outputCallback     = nullValue()

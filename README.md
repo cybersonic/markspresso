@@ -87,6 +87,7 @@ Key fields:
 - `build.latestPostsCount` – number of recent posts to show in the `{{ latest_posts }}` token (default: 5).
 - `collections.posts` – example collection for blog posts; defines a subdirectory (`path`), default layout, and permalink pattern.
 - `globals` – optional key/value map of site-wide variables available in layouts.
+- `socialImages` – optional per-page PNG generation (Java2D) that can be used for `og:image` and hero/header images.
 
 ### Globals
 
@@ -137,6 +138,40 @@ content/
 Files are ordered by their numeric prefix, and titles are automatically derived by removing the prefix and converting hyphens/underscores to title case. For complete details on organizing content for navigation, see [docs/navigation.md](docs/navigation.md).
 
 If fields are missing, Markspresso applies sensible defaults in code so that a partial `markspresso.json` still works.
+
+### Social image generation (fast local MVP)
+
+Markspresso can generate one image per page during `build`, without Playwright/Chromium, using Java2D.
+
+Example config:
+
+```json
+{
+  "socialImages": {
+    "enabled": true,
+    "width": 1200,
+    "height": 630,
+    "outputDir": "social-images",
+    "titleMaxLines": 3,
+    "descriptionMaxLines": 3,
+    "overrideOgImage": false,
+    "backgroundStartColor": "#0f172a",
+    "backgroundEndColor": "#1d4ed8",
+    "accentColor": "#60a5fa"
+  }
+}
+```
+
+Behavior:
+- Generates `public/social-images/...png` per page.
+- Uses front matter/content in this order:
+  - title: `social_title` → `og_title` → `title`
+  - description: `social_description` → `og_description` → `description` → `subtitle` → first paragraph
+- Injects generated path into:
+  - `hero_image` (if missing)
+  - `image` (if missing)
+  - `og_image` / `twitter_image` (if missing, or always when `overrideOgImage: true`)
+- Per-page opt-out: set `social_image: false` in front matter.
 
 ## CLI Reference
 

@@ -1,0 +1,81 @@
+name: Build and release markspresso binary
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout markspresso repo
+        uses: actions/checkout@v4
+        with:
+          path: markspresso
+
+      - name: Checkout LuCLI (feature/white-label-branding)
+        uses: actions/checkout@v4
+        with:
+          repository: cybersonic/LuCLI
+          ref: feature/white-label-branding
+          path: LuCLI
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: LuCLI/pom.xml
+
+      - name: Bundle markspresso module source into LuCLI build
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/LuCLI/target/modules-install/markspresso"
+          rsync -a --delete \
+            --exclude ".git" \
+            "$GITHUB_WORKSPACE/markspresso/" \
+            "$GITHUB_WORKSPACE/LuCLI/target/modules-install/markspresso/"
+
+      - name: Build branded LuCLI JAR
+        run: |
+          cd "$GITHUB_WORKSPACE/LuCLI"
+          mvn clean package \
+            -Dmaven.test.skip=true \
+            -Djreleaser.dry.run=true \
+            -Dbranding.enabled=true \
+            -Dbranding.binaryName=markspresso \
+            -Dbranding.profileName=markspresso \
+            -Dbranding.displayName=Markspresso \
+            -Dbranding.promptPrefix=markspresso \
+            -Dbranding.homeDirName=.markspresso \
+            -Dbranding.backupsDirName=.markspresso_backups \
+            -Dbranding.bannerText="Markspresso\nPowered by LuCLI"
+
+      - name: Create self-executing markspresso binary
+        run: |
+          cd "$GITHUB_WORKSPACE/LuCLI"
+          cat src/bin/lucli.sh target/lucli.jar > target/markspresso
+          chmod 755 target/markspresso
+
+      - name: Smoke test binary
+        run: |
+          "$GITHUB_WORKSPACE/LuCLI/target/markspresso" --version
+          "$GITHUB_WORKSPACE/LuCLI/target/markspresso" --help
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: markspresso-linux-amd64
+          path: LuCLI/target/markspresso
+
+      - name: Create GitHub release and upload binary
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: LuCLI/target/markspresso

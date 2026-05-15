@@ -12,6 +12,7 @@ component {
         required any fileService,
         required any navigationBuilder,
         required any lunrSearch,
+        any socialImageBuilder = nullValue(),
         string cwd = "",
         any timer = nullValue(),
         any outputCallback = nullValue()
@@ -21,6 +22,9 @@ component {
         variables.fileService       = arguments.fileService;
         variables.navigationBuilder = arguments.navigationBuilder;
         variables.lunrSearch        = arguments.lunrSearch;
+        variables.socialImageBuilder = isNull(arguments.socialImageBuilder)
+            ? new SocialImageBuilder(fileService = arguments.fileService)
+            : arguments.socialImageBuilder;
         variables.feedGenerator     = new FeedGenerator(fileService = arguments.fileService);
         variables.cwd               = arguments.cwd;
         variables.timer             = arguments.timer ?: {};
@@ -528,6 +532,41 @@ component {
             effectiveMeta.posts_list = arrayLen(postsCollection)
                 ? renderPostsListHtml(postsCollection, layoutsDir)
                 : "";
+
+            // Expose whether this is a dev build to layouts/head processing.
+            effectiveMeta.markspresso_dev_build = dev;
+
+            // Generate per-page social/header image from content metadata when enabled.
+            // The generated image path is exposed as hero_image and can also populate
+            // og_image/twitter_image defaults.
+            if (structKeyExists(config, "socialImages") and isStruct(config.socialImages) and config.socialImages.enabled) {
+                var generatedSocialImage = variables.socialImageBuilder.generateForDocument(
+                    config    = config,
+                    outputDir = outputDir,
+                    doc       = doc,
+                    meta      = effectiveMeta
+                );
+
+                if (len(generatedSocialImage)) {
+                    if (!structKeyExists(effectiveMeta, "hero_image") or !len(trim("" & effectiveMeta.hero_image))) {
+                        effectiveMeta.hero_image = generatedSocialImage;
+                    }
+                    if (!structKeyExists(effectiveMeta, "image") or !len(trim("" & effectiveMeta.image))) {
+                        effectiveMeta.image = generatedSocialImage;
+                    }
+
+                    var overrideOgImage = structKeyExists(config.socialImages, "overrideOgImage")
+                        ? config.socialImages.overrideOgImage
+                        : false;
+
+                    if (overrideOgImage or !structKeyExists(effectiveMeta, "og_image") or !len(trim("" & effectiveMeta.og_image))) {
+                        effectiveMeta.og_image = generatedSocialImage;
+                    }
+                    if (overrideOgImage or !structKeyExists(effectiveMeta, "twitter_image") or !len(trim("" & effectiveMeta.twitter_image))) {
+                        effectiveMeta.twitter_image = generatedSocialImage;
+                    }
+                }
+            }
 
             // Determine layout base path and CFML/HTML variants
             var layoutBasePath = layoutsDir & "/" & doc.layoutName;

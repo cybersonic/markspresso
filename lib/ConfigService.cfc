@@ -78,6 +78,20 @@ component {
         if (!structKeyExists(cfg.search.lunr, "dataJs")) cfg.search.lunr.dataJs = "js/markspresso-search-data.js";
         if (!structKeyExists(cfg.search.lunr, "searchJs")) cfg.search.lunr.searchJs = "js/markspresso-search.js";
 
+        // Social image generation defaults
+        if (!structKeyExists(cfg, "socialImages") or isNull(cfg.socialImages) or !isStruct(cfg.socialImages)) cfg.socialImages = {};
+        if (!structKeyExists(cfg.socialImages, "enabled")) cfg.socialImages.enabled = false;
+        if (!structKeyExists(cfg.socialImages, "width")) cfg.socialImages.width = 1200;
+        if (!structKeyExists(cfg.socialImages, "height")) cfg.socialImages.height = 630;
+        if (!structKeyExists(cfg.socialImages, "outputDir")) cfg.socialImages.outputDir = "social-images";
+        if (!structKeyExists(cfg.socialImages, "titleMaxLines")) cfg.socialImages.titleMaxLines = 3;
+        if (!structKeyExists(cfg.socialImages, "descriptionMaxLines")) cfg.socialImages.descriptionMaxLines = 3;
+        if (!structKeyExists(cfg.socialImages, "overrideOgImage")) cfg.socialImages.overrideOgImage = false;
+        if (!structKeyExists(cfg.socialImages, "useRelativeInDev")) cfg.socialImages.useRelativeInDev = false;
+        if (!structKeyExists(cfg.socialImages, "backgroundStartColor")) cfg.socialImages.backgroundStartColor = "##0f172a";
+        if (!structKeyExists(cfg.socialImages, "backgroundEndColor")) cfg.socialImages.backgroundEndColor = "##1d4ed8";
+        if (!structKeyExists(cfg.socialImages, "accentColor")) cfg.socialImages.accentColor = "##60a5fa";
+
         return cfg;
     }
 
@@ -114,7 +128,20 @@ component {
                     }
                 }
             },
-            "globals" : {}
+            "globals" : {},
+            "socialImages" : {
+                "enabled"              : false,
+                "width"                : 1200,
+                "height"               : 630,
+                "outputDir"            : "social-images",
+                "titleMaxLines"        : 3,
+                "descriptionMaxLines"  : 3,
+                "overrideOgImage"      : false,
+                "useRelativeInDev"     : false,
+                "backgroundStartColor" : "##0f172a",
+                "backgroundEndColor"   : "##1d4ed8",
+                "accentColor"          : "##60a5fa"
+            }
         };
     }
 
