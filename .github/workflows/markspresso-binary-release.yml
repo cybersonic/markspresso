@@ -42,6 +42,23 @@ jobs:
             "$GITHUB_WORKSPACE/markspresso/" \
             "$GITHUB_WORKSPACE/LuCLI/target/modules-install/markspresso/"
 
+      - name: Resolve markspresso version from module.json
+        run: |
+          MARKSPRESSO_VERSION="$(python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+module_json = Path(os.environ["GITHUB_WORKSPACE"]) / "markspresso" / "module.json"
+data = json.loads(module_json.read_text(encoding="utf-8"))
+version = str(data.get("version", "")).strip()
+if not version:
+    raise SystemExit("module.json is missing a non-empty 'version' field")
+print(version)
+PY
+)"
+          echo "MARKSPRESSO_VERSION=$MARKSPRESSO_VERSION" >> "$GITHUB_ENV"
+          echo "Resolved Markspresso version: $MARKSPRESSO_VERSION"
+
       - name: Build branded LuCLI JAR
         run: |
           cd "$GITHUB_WORKSPACE/LuCLI"
@@ -55,7 +72,8 @@ jobs:
             -Dbranding.promptPrefix=markspresso \
             -Dbranding.homeDirName=.markspresso \
             -Dbranding.backupsDirName=.markspresso_backups \
-            -Dbranding.bannerText="Markspresso\nPowered by LuCLI"
+            -Dbranding.productVersion="${MARKSPRESSO_VERSION}" \
+            -Dbranding.bannerText='Markspresso\nPowered by LuCLI Version: ${LUCLI_VERSION}'
 
       - name: Create self-executing markspresso binary
         run: |
