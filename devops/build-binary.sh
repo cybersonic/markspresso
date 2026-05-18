@@ -69,14 +69,18 @@ if [[ -n "${GITHUB_ENV:-}" ]]; then
 fi
 
 MODULE_INSTALL_DIR="$LUCLI_DIR/target/modules-install/markspresso"
+
+pushd "$LUCLI_DIR" >/dev/null
+mvn clean -Dmaven.test.skip=true
+
+# Populate bundled module content after clean, before package resources are processed.
 mkdir -p "$MODULE_INSTALL_DIR"
 rsync -a --delete \
   --exclude ".git" \
   "$MARKSPRESSO_DIR/" \
   "$MODULE_INSTALL_DIR/"
 
-pushd "$LUCLI_DIR" >/dev/null
-mvn clean package \
+mvn package \
   -Dmaven.test.skip=true \
   -Djreleaser.dry.run=true \
   -Dbranding.enabled=true \
