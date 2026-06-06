@@ -5,18 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }} · Markspresso</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="/css/docs.css" rel="stylesheet">
+    <link href="/css/page.css" rel="stylesheet">
   </head>
-  <body>
-    <div class="post-shell">
+  <body class="post-page">
+    <div class="site-shell">
       {{ include "partials/header.html" }}
-      <article class="post-main">
-        <h1 class="post-title">{{ title }}</h1>
-        <p class="post-meta">A Markspresso brew</p>
-        <div class="post-body">
-          {{ content }}
-        </div>
-      </article>
+      <main class="container post-layout">
+        <article class="post-article">
+          <p class="post-kicker">Markspresso Brew Log</p>
+          <h1 class="post-title">{{ title }}</h1>
+          {{#if date}}
+          <p class="post-date">{{ date }}</p>
+          {{/if}}
+          <div class="post-content">
+            {{ content }}
+          </div>
+        </article>
+        <aside class="post-aside">
+          <div class="post-aside-card">
+            <h2 class="post-aside-title">Recent posts</h2>
+            {{ posts_list }}
+          </div>
+        </aside>
+      </main>
       {{ include "partials/footer.html" }}
     </div>
     <script>
@@ -49,5 +60,6 @@
         };
       })();
     </script>
+    {{ markspressoScripts }}
   </body>
 </html>

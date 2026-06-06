@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="/css/page.css" rel="stylesheet">
+  </head>
+  <body class="home-page">
+    <div class="site-shell">
+      {{ include "partials/header.html" }}
+      <section class="hero">
+        <div class="container hero-inner">
+          <div class="hero-copy">
+            <p class="hero-kicker">Markdown-powered static publishing</p>
+            <h1 class="hero-title">{{ title }}</h1>
+            <p class="hero-description">{{ description }}</p>
+            <div class="hero-actions">
+              <a href="{{ cta_primary_url }}" class="button button-primary">{{ cta_primary_label }}</a>
+              <a href="{{ cta_secondary_url }}" class="button button-secondary" target="_blank" rel="noreferrer">{{ cta_secondary_label }}</a>
+            </div>
+            <ul class="hero-bullets">
+              <li>Markdown-first authoring with front matter metadata.</li>
+              <li>Fast static builds with pretty URLs and collection routing.</li>
+              <li>Built-in search, feeds, and optional social image generation.</li>
+            </ul>
+          </div>
+          <div class="hero-code-card">
+            <p class="hero-code-title">From zero to live docs in minutes</p>
+            <pre><code>markspresso create --name "My Site"
+markspresso build --clean
+markspresso watch
+markspresso serve --force
+
+# also supported:
+lucli markspresso build --clean</code></pre>
+          </div>
+        </div>
+      </section>
+      <main class="container marketing-main">
+        <article class="marketing-content">
+          {{ content }}
+        </article>
+      </main>
+      <section class="cta-band">
+        <div class="container cta-band-inner">
+          <h2 class="cta-band-title">Ready to brew your own static site?</h2>
+          <p class="cta-band-copy">Use the docs for a guided start, then customize layouts, collections, and assets to match your brand.</p>
+          <a href="/docs/getting-started/" class="button button-primary">Open the quick start</a>
+        </div>
+      </section>
+      {{ include "partials/footer.html" }}
+    </div>
+    <script>
+      (function() {
+        var storageKey = 'markspresso-theme';
+        var root = document.documentElement;
+        function applyTheme(theme) {
+          if (!theme) return;
+          root.setAttribute('data-theme', theme);
+          try { localStorage.setItem(storageKey, theme); } catch (e) {}
+        }
+        function getStoredTheme() {
+          try { return localStorage.getItem(storageKey); } catch (e) { return null; }
+        }
+        var stored = getStoredTheme();
+        if (stored === 'light' || stored === 'dark') {
+          applyTheme(stored);
+        } else {
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          applyTheme(prefersDark ? 'dark' : 'light');
+        }
+        window.markspressoToggleTheme = function() {
+          var current = root.getAttribute('data-theme') || 'light';
+          applyTheme(current === 'light' ? 'dark' : 'light');
+        };
+      })();
+    </script>
+    {{ markspressoScripts }}
+  </body>
+</html>

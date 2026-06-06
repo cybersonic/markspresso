@@ -12,9 +12,9 @@
       "layout": "post"
     }
   },
-  "name": "Markspresso Documentation",
+  "name": "Markspresso",
   "navigation": {
-    "rootPath": "",
+    "rootPath": "docs",
     "pagination": true
   },
   "search": {
