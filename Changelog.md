@@ -8,7 +8,6 @@ All notable changes to Markspresso are documented in this file.
 - Add `previewtheme` command to list/switch themes and optionally build
 - Add `previewallthemes` command to build per-theme preview outputs and generate `docs/_previews/index.html` comparison page
 - Add preview URL rewriting and preview layout isolation so iframe-based theme previews work from nested output paths
-- Add docs page: `content/docs/045_themes-and-previews.md`
 - Change default port from 8080 to 3456 across all commands and docs
 - Implement `serve` command — now starts an HTTP server via lucli
 - Add `pdf` and `geturl` subcommands to help/usage output
