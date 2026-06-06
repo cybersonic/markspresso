@@ -32,6 +32,7 @@ A minimal config looks like this:
 {
   "name": "My Site",
   "baseUrl": "http://localhost:8080",
+  "theme": "default",
   "paths": {
     "content": "content",
     "layouts": "layouts",
@@ -53,6 +54,17 @@ A minimal config looks like this:
   }
 }
 ```
+
+#### `theme`
+
+- `theme` – active theme name used by the builder (default: `default`)
+
+Theme lookup order is:
+
+1. `<site-root>/themes/<theme-name>/`
+2. module-level `themes/<theme-name>/`
+
+If no matching theme is found, Markspresso falls back to site-local layouts/assets.
 
 #### `paths`
 
