@@ -212,6 +212,9 @@ component {
         var outputDir  = rootDir & "/" & (len(outDir) ? outDir : config.paths.output);
         var layoutsDir = rootDir & "/" & config.paths.layouts;
         var assetsDir  = rootDir & "/" & config.paths.assets;
+        var themeContext = resolveThemeContext(config = config, siteRoot = rootDir);
+        var themeLayoutsDir = themeContext.layoutsDir;
+        var themeAssetsDir  = themeContext.assetsDir;
 
         var prettyUrls    = config.build.prettyUrls;
         var includeDrafts = drafts ? true : config.build.includeDrafts;
@@ -228,7 +231,13 @@ component {
             directoryDelete(outputDir, true);
         }
         variables.fileService.ensureDir(outputDir);
+        // Copy theme assets first (if any), then site assets so site-specific assets can win.
+        if (len(themeAssetsDir) and directoryExists(themeAssetsDir)) {
+            var themeAssetsOutputDir = outputDir & "/theme-assets/" & themeContext.name;
+            variables.fileService.copyAssets(themeAssetsDir, themeAssetsOutputDir);
+        }
 
+        // Copy site assets (if any)
         // Copy assets (if any)
         if (directoryExists(assetsDir)) {
             variables.fileService.copyAssets(assetsDir, outputDir);
@@ -437,6 +446,17 @@ component {
             }
 
             var effectiveMeta = duplicate(doc.meta);
+            var layoutRoots = [ layoutsDir ];
+            var includeRoots = [ layoutsDir ];
+            var listRoots = [ layoutsDir ];
+
+            if (len(themeLayoutsDir)) {
+                arrayAppend(layoutRoots, themeLayoutsDir);
+            }
+            if (len(themeContext.root)) {
+                arrayAppend(includeRoots, themeContext.root);
+                arrayAppend(listRoots, themeContext.root);
+            }
 
             // Inject global variables from config under a namespaced key like {{ globals.blogName }}
             if (structKeyExists(config, "globals") and isStruct(config.globals)) {
@@ -501,10 +521,6 @@ component {
             }
         }
 
-            // Make tags/archives/posts lists globally available so they can be used in any layout
-            effectiveMeta.tags_list = structCount(tagsIndex) ? renderTagsListHtml(tagsIndex, layoutsDir) : "";
-            effectiveMeta.archives_list = structCount(archivesIndex) ? renderArchivesListHtml(archivesIndex, layoutsDir) : "";
-            effectiveMeta.posts_list = arrayLen(postsCollection) ? renderPostsListHtml(postsCollection, layoutsDir) : "";
 
             // Expose Markspresso-provided scripts (e.g. Lunr search) to layouts
             effectiveMeta.markspressoScripts = markspressoScriptsHtml;
@@ -522,15 +538,15 @@ component {
             // Make tags/archives/posts lists globally available so they can be used in any layout.
             // These support CFML overrides in the active site's layouts directory.
             effectiveMeta.tags_list = structCount(tagsIndex)
-                ? renderTagsListHtml(tagsIndex, layoutsDir)
+                ? renderTagsListHtml(tagsIndex, listRoots)
                 : "";
 
             effectiveMeta.archives_list = structCount(archivesIndex)
-                ? renderArchivesListHtml(archivesIndex, layoutsDir)
+                ? renderArchivesListHtml(archivesIndex, listRoots)
                 : "";
 
             effectiveMeta.posts_list = arrayLen(postsCollection)
-                ? renderPostsListHtml(postsCollection, layoutsDir)
+                ? renderPostsListHtml(postsCollection, listRoots)
                 : "";
 
             // Expose whether this is a dev build to layouts/head processing.
@@ -568,22 +584,23 @@ component {
                 }
             }
 
-            // Determine layout base path and CFML/HTML variants
-            var layoutBasePath = layoutsDir & "/" & doc.layoutName;
-            var layoutCfmPath  = layoutBasePath & ".cfm";
-            var layoutHtmlPath = layoutBasePath & ".html";
+            // Resolve layout path using precedence: site > theme > inline fallback.
+            var resolvedLayout = resolveLayoutPath(
+                layoutName  = doc.layoutName,
+                layoutRoots = layoutRoots
+            );
 
             var rewrittenContent = variables.contentParser.rewriteLinks(doc.html, doc.relPath, docUrlMap);
             var finalHtml = "";
 
-            if (fileExists(layoutCfmPath)) {
+            if (resolvedLayout.type == "cfm") {
                 // Use CFML layout override when present.
                 // First, process tokens/conditionals inside the content HTML itself
                 // so things like {{ latest_posts }} work when written in Markdown.
                 var processedContentOnly = variables.contentParser.applyLayout("{{ content }}", effectiveMeta, rewrittenContent);
 
                 finalHtml = renderWithCfmlLayout(
-                    overrideFilePath = layoutCfmPath,
+                    overrideFilePath = resolvedLayout.path,
                     meta             = effectiveMeta,
                     contentHtml      = processedContentOnly,
                     config           = config,
@@ -596,11 +613,13 @@ component {
             }
             else {
                 // Fallback to HTML layout with Markspresso token replacement
-                var layoutHtml = fileExists(layoutHtmlPath) ? fileRead(layoutHtmlPath, "UTF-8") : "{{ content }}";
+                var layoutHtml = resolvedLayout.type == "html"
+                    ? fileRead(resolvedLayout.path, "UTF-8")
+                    : "{{ content }}";
 
                 // Resolve layout partial includes such as {{ include "partials/header.html" }}.
-                // Include paths are resolved relative to the layouts directory.
-                layoutHtml = resolveLayoutIncludes(layoutHtml, layoutsDir);
+                // Include paths are resolved against site layouts first, then active theme root.
+                layoutHtml = resolveLayoutIncludes(layoutHtml, includeRoots);
 
                 finalHtml = variables.contentParser.applyLayout(layoutHtml, effectiveMeta, rewrittenContent);
             }
@@ -973,22 +992,97 @@ component {
         return variables.cwd.len() ? variables.cwd : getCurrentTemplatePath().reReplace("[/\\][^/\\]*$", "");
     }
 
+    private string function moduleRoot() {
+        var libDir = replace(getDirectoryFromPath(getCurrentTemplatePath()), "\\", "/", "all");
+        return reReplace(libDir, "/lib/?$", "");
+    }
+
+    private struct function resolveThemeContext(required struct config, required string siteRoot) {
+        var requestedTheme = trim("" & (structKeyExists(config, "theme") ? config.theme : "default"));
+        if (!len(requestedTheme)) {
+            requestedTheme = "default";
+        }
+
+        if (reFindNoCase("[/\\]|\\.\\.", requestedTheme)) {
+            out("[markspresso:build] Invalid theme name '" & requestedTheme & "'. Falling back to default.");
+            requestedTheme = "default";
+        }
+
+        var siteThemeRoot = siteRoot & "/themes/" & requestedTheme;
+        if (directoryExists(siteThemeRoot)) {
+            var siteThemeMeta = loadThemeMetadata(siteThemeRoot);
+            return {
+                name       = requestedTheme,
+                root       = siteThemeRoot,
+                layoutsDir = siteThemeRoot & "/layouts",
+                assetsDir  = siteThemeRoot & "/assets",
+                metadata   = siteThemeMeta,
+                source     = "site"
+            };
+        }
+
+        var moduleThemeRoot = moduleRoot() & "/themes/" & requestedTheme;
+        if (directoryExists(moduleThemeRoot)) {
+            var moduleThemeMeta = loadThemeMetadata(moduleThemeRoot);
+            return {
+                name       = requestedTheme,
+                root       = moduleThemeRoot,
+                layoutsDir = moduleThemeRoot & "/layouts",
+                assetsDir  = moduleThemeRoot & "/assets",
+                metadata   = moduleThemeMeta,
+                source     = "module"
+            };
+        }
+
+        out("[markspresso:build] Theme '" & requestedTheme & "' not found. Using site layouts/assets only.");
+        return {
+            name       = requestedTheme,
+            root       = "",
+            layoutsDir = "",
+            assetsDir  = "",
+            metadata   = {},
+            source     = ""
+        };
+    }
+
+    private struct function loadThemeMetadata(required string themeRoot) {
+        var metadata = {};
+        var metadataPath = themeRoot & "/theme.json";
+        if (!fileExists(metadataPath)) {
+            return metadata;
+        }
+
+        try {
+            metadata = deserializeJson(fileRead(metadataPath, "UTF-8"));
+        }
+        catch (any e) {
+            out("[markspresso:build] Invalid theme.json at " & metadataPath & ": " & e.message);
+            metadata = {};
+        }
+
+        return metadata;
+    }
+
     /**
      * Resolve {{ include "partials/header.html" }}-style directives in layout HTML.
-     * Include paths are resolved relative to the layouts directory (e.g. layouts/partials/header.html).
+     * Include paths are resolved against an ordered list of roots (site first, theme second).
      */
     private string function resolveLayoutIncludes(
         required string layoutHtml,
-        required string layoutsDir,
+        required array includeRoots,
         struct visited = {}
     ) {
         var result        = layoutHtml;
         var searchStart   = 1;
         var maxIterations = 1000;
         var iteration     = 0;
-
-        // Normalize layoutsDir once
-        var baseDir = replace(layoutsDir, "\\", "/", "all");
+        var normalizedRoots = [];
+        for (var r in includeRoots) {
+            if (!len(trim("" & r))) {
+                continue;
+            }
+            arrayAppend(normalizedRoots, replace(r, "\\", "/", "all"));
+        }
 
         while (true) {
             iteration++;
@@ -1047,7 +1141,13 @@ component {
                 continue;
             }
 
-            var fullPath = baseDir & "/" & includeRelPath;
+            var fullPath = resolveFirstIncludePath(includeRelPath, normalizedRoots);
+            if (!len(fullPath)) {
+                out("[markspresso:build] include not found: " & includeRelPath);
+                result = left(result, fullStart - 1) & mid(result, fullEnd + 1);
+                searchStart = fullStart;
+                continue;
+            }
 
             // Detect recursive includes using the resolved full path
             if (structKeyExists(visited, fullPath)) {
@@ -1062,7 +1162,7 @@ component {
                 visited[fullPath] = true;
                 partialHtml = fileRead(fullPath, "UTF-8");
                 // Recursively resolve includes inside the partial
-                partialHtml = resolveLayoutIncludes(partialHtml, layoutsDir, visited);
+                partialHtml = resolveLayoutIncludes(partialHtml, includeRoots, visited);
                 structDelete(visited, fullPath);
             }
 
@@ -1074,6 +1174,33 @@ component {
         }
 
         return result;
+    }
+
+    private string function resolveFirstIncludePath(required string includeRelPath, required array includeRoots) {
+        for (var baseDir in includeRoots) {
+            var fullPath = baseDir & "/" & includeRelPath;
+            if (fileExists(fullPath)) {
+                return fullPath;
+            }
+        }
+
+        return "";
+    }
+
+    private struct function resolveLayoutPath(required string layoutName, required array layoutRoots) {
+        for (var root in layoutRoots) {
+            var cfmPath = root & "/" & layoutName & ".cfm";
+            if (fileExists(cfmPath)) {
+                return { type = "cfm", path = cfmPath };
+            }
+
+            var htmlPath = root & "/" & layoutName & ".html";
+            if (fileExists(htmlPath)) {
+                return { type = "html", path = htmlPath };
+            }
+        }
+
+        return { type = "inline", path = "" };
     }
 
     /**
@@ -1669,10 +1796,17 @@ component {
      * If layouts/tags_list.cfm exists in the active site, that CFML template
      * is used instead and receives a single argument: tagsIndex.
      */
-    private string function renderTagsListHtml(struct tagsIndex, string layoutsDir) {
-        var overrideFilePath = layoutsDir & "/lists/tags_list.cfm";
+    private string function renderTagsListHtml(struct tagsIndex, array listRoots) {
+        var overrideFilePath = "";
+        for (var root in listRoots) {
+            var candidate = root & "/lists/tags_list.cfm";
+            if (fileExists(candidate)) {
+                overrideFilePath = candidate;
+                break;
+            }
+        }
 
-        if (fileExists(overrideFilePath)) {
+        if (len(overrideFilePath)) {
             savecontent variable="html" {
                 include template="#contractPath(overrideFilePath)#";
             }
@@ -1705,10 +1839,17 @@ component {
      * If layouts/archives_list.cfm exists in the active site, that CFML
      * template is used instead and receives a single argument: archivesIndex.
      */
-    private string function renderArchivesListHtml(struct archivesIndex, string layoutsDir) {
-        var overrideFilePath = layoutsDir & "/lists/archives_list.cfm";
+    private string function renderArchivesListHtml(struct archivesIndex, array listRoots) {
+        var overrideFilePath = "";
+        for (var root in listRoots) {
+            var candidate = root & "/lists/archives_list.cfm";
+            if (fileExists(candidate)) {
+                overrideFilePath = candidate;
+                break;
+            }
+        }
 
-        if (fileExists(overrideFilePath)) {
+        if (len(overrideFilePath)) {
             savecontent variable="html" {
                 include template="#contractPath(overrideFilePath)#";
             }
@@ -1738,10 +1879,17 @@ component {
      * If layouts/posts_list.cfm exists in the active site, that CFML template
      * is used instead and receives a single argument: posts (array).
      */
-    private string function renderPostsListHtml(array posts, string layoutsDir) {
-        var overrideFilePath = layoutsDir & "/lists/posts_list.cfm";
+    private string function renderPostsListHtml(array posts, array listRoots) {
+        var overrideFilePath = "";
+        for (var root in listRoots) {
+            var candidate = root & "/lists/posts_list.cfm";
+            if (fileExists(candidate)) {
+                overrideFilePath = candidate;
+                break;
+            }
+        }
 
-        if (fileExists(overrideFilePath)) {
+        if (len(overrideFilePath)) {
             savecontent variable="html" {
                 include template="#contractPath(overrideFilePath)#";
             }

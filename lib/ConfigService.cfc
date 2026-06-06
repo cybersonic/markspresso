@@ -51,6 +51,7 @@ component {
         if (!structKeyExists(cfg.build, "prettyUrls"))   cfg.build.prettyUrls   = true;
         if (!structKeyExists(cfg.build, "includeDrafts")) cfg.build.includeDrafts = false;
         if (!structKeyExists(cfg.build, "latestPostsCount")) cfg.build.latestPostsCount = 5;
+        if (!structKeyExists(cfg, "theme") or !len(trim("" & cfg.theme))) cfg.theme = "default";
 
         // Collections
         if (!structKeyExists(cfg, "collections") or isNull(cfg.collections)) cfg.collections = {};
@@ -114,6 +115,7 @@ component {
                 "includeDrafts" : false,
                 "latestPostsCount" : 5
             },
+            "theme" : "default",
             "collections" : {
                 "posts" : {
                     "path"      : "posts",
