@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css">
+  </head>
+  <body class="terminal">
+    {{ include "partials/header.html" }}
+    <main class="container">
+      <h1>{{ title }}</h1>
+      {{#if description}}<p>{{ description }}</p>{{/if}}
+      {{ content }}
+    </main>
+    {{ include "partials/footer.html" }}
+    {{ markspressoScripts }}
+  </body>
+</html>

@@ -1,0 +1,165 @@
+:root {
+  --bg: #101114;
+  --ink: #aeb3c0;
+  --muted: #7d8392;
+  --title: #d4d9e4;
+  --link: #8aa2d6;
+  --line: #242730;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.55;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.retro-header,
+.retro-footer,
+.retro-single,
+.retro-main,
+.retro-side {
+  width: min(980px, calc(100% - 2rem));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+
+.retro-header {
+  margin-top: 1.2rem;
+  margin-bottom: 1.4rem;
+  padding: 0 0 0.6rem 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.95rem;
+}
+
+.retro-nav {
+  display: flex;
+  gap: 0.9rem;
+}
+
+.brand {
+  color: var(--title);
+  letter-spacing: 0.03em;
+}
+
+.brand a {
+  color: var(--title);
+  text-decoration: none;
+}
+
+.retro-single {
+  margin-bottom: 1.2rem;
+  padding: 0;
+  border: 0;
+}
+
+.hero {
+  margin-bottom: 0.6rem;
+}
+
+.hero-title,
+.retro-main h1 {
+  margin: 0 0 0.4rem;
+  color: var(--title);
+  font-size: 1.45rem;
+  font-weight: normal;
+}
+
+.lede, .stamp {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin-top: 0;
+}
+
+.retro-shell {
+  width: min(980px, calc(100% - 2rem));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 2rem;
+}
+
+.retro-main, .retro-side {
+  padding: 0;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.retro-side h2 {
+  margin: 0 0 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: normal;
+}
+
+.retro-side ul,
+.retro-side ol {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.retro-side li {
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.body-copy p,
+.body-copy li {
+  color: var(--ink);
+}
+
+.body-copy h2,
+.body-copy h3 {
+  color: var(--title);
+  font-weight: normal;
+}
+
+.retro-main pre {
+  overflow: auto;
+  background: #0d0f13;
+  border: 1px solid var(--line);
+  padding: 0.7rem;
+  font-family: "Courier New", monospace;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.retro-footer {
+  margin-top: 1.2rem;
+  margin-bottom: 2rem;
+  padding: 0.8rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  border-top: 1px solid var(--line);
+}
+
+.retro-footer p {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .retro-shell {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .retro-side {
+    border-top: 1px solid var(--line);
+    padding-top: 1rem;
+  }
+}

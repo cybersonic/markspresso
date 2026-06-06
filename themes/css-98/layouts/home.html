@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <link rel="stylesheet" href="https://unpkg.com/98.css">
+    <style>
+      body { background: teal; margin: 0; font-family: "MS Sans Serif", Tahoma, sans-serif; }
+      .mk-wrap { max-width: 1040px; margin: 1rem auto; padding: 0 0.5rem; }
+      .mk-window { margin-bottom: 0.9rem; }
+    </style>
+  </head>
+  <body>
+    <div class="mk-wrap">
+      {{ include "partials/header.html" }}
+      <section class="window mk-window">
+        <div class="title-bar"><div class="title-bar-text">{{ title }}</div></div>
+        <div class="window-body">
+          {{#if description}}<p>{{ description }}</p>{{/if}}
+          {{ content }}
+        </div>
+      </section>
+      {{ include "partials/footer.html" }}
+    </div>
+    {{ markspressoScripts }}
+  </body>
+</html>

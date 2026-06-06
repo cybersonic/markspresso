@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <link rel="stylesheet" href="/theme-assets/retro-wave/css/retro.css">
+  </head>
+  <body>
+    {{ include "partials/header.html" }}
+    <main class="retro-shell">
+      <aside class="retro-side">
+        <h2>tracks</h2>
+        {{ navigation }}
+      </aside>
+      <article class="retro-main body-copy">
+        <h1>{{ title }}</h1>
+        {{#if description}}<p class="lede">{{ description }}</p>{{/if}}
+        {{ content }}
+      </article>
+    </main>
+    {{ include "partials/footer.html" }}
+    {{ markspressoScripts }}
+  </body>
+</html>

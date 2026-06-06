@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+  </head>
+  <body>
+    {{ include "partials/header.html" }}
+    <main class="section">
+      <div class="container">
+        <div class="columns is-variable is-5">
+          <article class="column is-8">
+            <div class="box">
+              <h1 class="title is-3">{{ title }}</h1>
+              {{#if date}}<p class="is-size-7 has-text-grey">{{ date }}</p>{{/if}}
+              <div>{{ content }}</div>
+            </div>
+          </article>
+          <aside class="column is-4">
+            <div class="box">
+              <h2 class="title is-6">Recent Posts</h2>
+              {{ posts_list }}
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+    {{ include "partials/footer.html" }}
+    {{ markspressoScripts }}
+  </body>
+</html>

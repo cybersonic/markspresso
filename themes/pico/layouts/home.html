@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  </head>
+  <body>
+    {{ include "partials/header.html" }}
+    <main class="container">
+      <section>
+        <hgroup>
+          <h1>{{ title }}</h1>
+          {{#if description}}<p>{{ description }}</p>{{/if}}
+        </hgroup>
+      </section>
+      <section>
+        {{ content }}
+      </section>
+    </main>
+    {{ include "partials/footer.html" }}
+    {{ markspressoScripts }}
+  </body>
+</html>

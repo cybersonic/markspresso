@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.6; }
+      .container { max-width: 980px; margin: 0 auto; padding: 1rem; }
+      .hero { padding: 3rem 1rem 2rem; border-bottom: 1px solid rgba(127,127,127,0.3); }
+      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+      .card { border: 1px solid rgba(127,127,127,0.3); padding: 1rem; border-radius: 0.5rem; }
+    </style>
+  </head>
+  <body>
+    {{ include "partials/header.html" }}
+    <section class="hero">
+      <div class="container">
+        <h1>{{ title }}</h1>
+        {{#if description}}<p>{{ description }}</p>{{/if}}
+      </div>
+    </section>
+    <main class="container">
+      <div>{{ content }}</div>
+    </main>
+    {{ include "partials/footer.html" }}
+    {{ markspressoScripts }}
+  </body>
+</html>

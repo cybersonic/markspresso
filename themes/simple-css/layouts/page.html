@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+    <style>
+      .mk-grid { display: grid; grid-template-columns: 240px 1fr; gap: 2rem; }
+      .mk-sidebar { font-size: 0.95rem; }
+      @media (max-width: 900px) { .mk-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    {{ include "partials/header.html" }}
+    <main class="mk-grid">
+      <aside class="mk-sidebar">
+        <h3>Docs</h3>
+        {{ navigation }}
+      </aside>
+      <article>
+        <h1>{{ title }}</h1>
+        {{#if description}}<p>{{ description }}</p>{{/if}}
+        {{ content }}
+      </article>
+    </main>
+    {{ include "partials/footer.html" }}
+    {{ markspressoScripts }}
+  </body>
+</html>

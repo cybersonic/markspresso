@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css">
+    <style>
+      .mk-grid { display: grid; grid-template-columns: 240px 1fr; gap: 1rem; }
+      @media (max-width: 900px) { .mk-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body class="terminal">
+    {{ include "partials/header.html" }}
+    <main class="container mk-grid">
+      <aside>
+        <div class="terminal-card">
+          <header>docs</header>
+          <div>{{ navigation }}</div>
+        </div>
+      </aside>
+      <article>
+        <h1>{{ title }}</h1>
+        {{#if description}}<p>{{ description }}</p>{{/if}}
+        {{ content }}
+      </article>
+    </main>
+    {{ include "partials/footer.html" }}
+    {{ markspressoScripts }}
+  </body>
+</html>

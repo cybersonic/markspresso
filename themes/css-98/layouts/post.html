@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <link rel="stylesheet" href="https://unpkg.com/98.css">
+    <style>
+      body { background: teal; margin: 0; font-family: "MS Sans Serif", Tahoma, sans-serif; }
+      .mk-wrap { max-width: 1040px; margin: 1rem auto; padding: 0 0.5rem; }
+      .mk-grid { display: grid; grid-template-columns: 1fr 260px; gap: 0.8rem; }
+      @media (max-width: 900px) { .mk-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="mk-wrap">
+      {{ include "partials/header.html" }}
+      <main class="mk-grid">
+        <article class="window">
+          <div class="title-bar"><div class="title-bar-text">{{ title }}</div></div>
+          <div class="window-body">
+            {{#if date}}<p><small>{{ date }}</small></p>{{/if}}
+            {{ content }}
+          </div>
+        </article>
+        <aside class="window">
+          <div class="title-bar"><div class="title-bar-text">Recent Posts</div></div>
+          <div class="window-body">
+            {{ posts_list }}
+          </div>
+        </aside>
+      </main>
+      {{ include "partials/footer.html" }}
+    </div>
+    {{ markspressoScripts }}
+  </body>
+</html>

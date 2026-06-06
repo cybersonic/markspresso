@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-200 antialiased">
+    {{ include "partials/header.html" }}
+    <main class="mx-auto max-w-6xl px-6 py-10">
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+          <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">Docs</h2>
+          <div class="text-sm">{{ navigation }}</div>
+        </aside>
+        <article class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+          <h1 class="text-3xl font-semibold text-white">{{ title }}</h1>
+          {{#if description}}<p class="mt-2 text-slate-400">{{ description }}</p>{{/if}}
+          <div class="prose prose-invert prose-slate mt-6 max-w-none">
+            {{ content }}
+          </div>
+        </article>
+      </div>
+    </main>
+    {{ include "partials/footer.html" }}
+    {{ markspressoScripts }}
+  </body>
+</html>
