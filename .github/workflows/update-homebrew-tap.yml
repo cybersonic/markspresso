@@ -1,0 +1,17 @@
+name: Update Homebrew tap (markspresso)
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-tap:
+    uses: cybersonic/homebrew-tap/.github/workflows/update-formula.yml@main
+    with:
+      formula_name: markspresso
+      formula_type: single_asset
+      release_repo: cybersonic/markspresso
+      version: ${{ github.event.release.tag_name }}
+      asset_name: markspresso
+    secrets:
+      tap_repo_token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
