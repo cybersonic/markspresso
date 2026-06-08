@@ -36,7 +36,7 @@ jobs:
         run: |
           # If needed, cd into subdir first
           # cd path/to/site-root
-          lucli markspresso build clean
+          lucli markspresso build --clean
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
