@@ -450,6 +450,96 @@ a:hover {
   margin: 0;
 }
 
+.proof-strip {
+  margin-top: 0.95rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.proof-strip-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.proof-item {
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.95rem 1rem;
+}
+
+.proof-item h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1.07rem;
+}
+
+.proof-item p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.proof-item code {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  background: var(--chip-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.08rem 0.32rem;
+  font-size: 0.84em;
+  color: var(--text);
+}
+
+.compare-grid {
+  margin-top: 0.95rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.compare-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel-strong);
+  padding: 0.95rem 1rem;
+}
+
+.compare-card h3 {
+  margin: 0 0 0.55rem;
+  font-size: 1.08rem;
+}
+
+.compare-card ul {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.compare-card li {
+  color: var(--text-muted);
+}
+
+.compare-card li + li {
+  margin-top: 0.42rem;
+}
+
+.theme-chip-list {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.theme-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--text-muted);
+  padding: 0.35rem 0.68rem;
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+
 .cta-band {
   margin-top: auto;
   border-top: 1px solid var(--border);
@@ -840,6 +930,10 @@ a:hover {
   .feature-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .proof-strip-three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
@@ -872,7 +966,10 @@ a:hover {
   }
 
   .feature-grid,
-  .workflow-grid {
+  .workflow-grid,
+  .proof-strip,
+  .proof-strip-three,
+  .compare-grid {
     grid-template-columns: 1fr;
   }
 

@@ -1,5 +1,5 @@
 (function () {
-  const POLL_INTERVAL = 1000; // ms
+  const POLL_INTERVAL = 500; // ms
   let lastBuildId = null;
 
   async function checkReload() {

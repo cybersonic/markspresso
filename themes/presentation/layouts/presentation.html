@@ -1,0 +1,2678 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --bg-accent: #111933;
+        --bg-radial-left: #1f2a56;
+        --bg-radial-right: #17395f;
+        --presenter-bg: #050814;
+        --presenter-panel-bg: #0a0f21;
+        --presenter-pending-opacity: 0.7;
+        --text: #f7f8fb;
+        --muted: #aeb8d0;
+        --accent: #6ee7ff;
+        --accent-2: #60a5fa;
+        --card: #111b36;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background:
+          radial-gradient(circle at 10% 10%, var(--bg-radial-left) 0%, transparent 35%),
+          radial-gradient(circle at 90% 10%, var(--bg-radial-right) 0%, transparent 35%),
+          var(--bg);
+        color: var(--text);
+      }
+      .deck-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+      .deck-topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.12);
+        background: rgba(8, 12, 26, 0.7);
+        backdrop-filter: blur(4px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .deck-title {
+        font-size: 0.95rem;
+        color: var(--muted);
+      }
+      .deck-counter {
+        font-size: 0.9rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .deck-stage {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+      }
+      #deck {
+        width: min(1200px, 96vw);
+      }
+      .slide {
+        display: none;
+        min-height: min(78vh, 760px);
+        background: linear-gradient(155deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 20px;
+        padding: clamp(1.4rem, 2.6vw, 2.4rem);
+        padding-bottom: clamp(3.15rem, 5vw, 4.1rem);
+        position: relative;
+        box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+      }
+      .slide.active { display: block; }
+      .slide h1, .slide h2, .slide h3 {
+        margin-top: 0;
+        line-height: 1.2;
+      }
+      .slide h1 { font-size: clamp(2rem, 3.6vw, 3.1rem); }
+      .slide h2 { font-size: clamp(1.45rem, 2.7vw, 2.2rem); color: var(--accent); }
+      .slide p, .slide li {
+        font-size: clamp(1rem, 1.5vw, 1.28rem);
+        line-height: 1.55;
+      }
+      .slide ul, .slide ol {
+        padding-left: 1.3rem;
+      }
+      .slide code {
+        background: rgba(255,255,255,0.12);
+        border-radius: 6px;
+        padding: 0.12rem 0.3rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 1.03em;
+      }
+      .slide pre {
+        background: #0a1329;
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 12px;
+        padding: 0.85rem 1rem;
+        overflow-x: auto;
+      }
+      .slide pre code {
+        font-size: clamp(1.05rem, 1.4vw, 1.22rem);
+        line-height: 1.45;
+      }
+      .slide pre code.code-lines-processed,
+      .presenter-slide-content pre code.code-lines-processed {
+        display: block;
+        background: transparent;
+        border-radius: 0;
+        padding: 0;
+      }
+      .slide pre code.code-lines-processed .code-line,
+      .presenter-slide-content pre code.code-lines-processed .code-line {
+        display: block;
+        padding: 0 0.3rem;
+        border-radius: 6px;
+      }
+      .slide pre code.code-lines-processed .code-line.is-highlight,
+      .presenter-slide-content pre code.code-lines-processed .code-line.is-highlight {
+        background: rgba(110,231,255,0.16);
+        box-shadow: inset 0 0 0 1px rgba(110,231,255,0.34);
+      }
+      .slide pre code.code-lines-processed .code-line.is-highlight.has-inline-highlight,
+      .presenter-slide-content pre code.code-lines-processed .code-line.is-highlight.has-inline-highlight {
+        background: transparent;
+        box-shadow: none;
+      }
+      .slide pre code.code-lines-processed .code-line .code-line-highlight-span,
+      .presenter-slide-content pre code.code-lines-processed .code-line .code-line-highlight-span {
+        background: rgba(110,231,255,0.16);
+        box-shadow: inset 0 0 0 1px rgba(110,231,255,0.34);
+        border-radius: 4px;
+      }
+      .slide pre code.code-lines-processed .code-line.is-highlight.fragment-highlight-pending,
+      .presenter-slide-content pre code.code-lines-processed .code-line.is-highlight.fragment-highlight-pending {
+        background: transparent;
+        box-shadow: none;
+      }
+      .slide pre code.code-lines-processed .code-line.has-inline-highlight.fragment-highlight-pending .code-line-highlight-span,
+      .presenter-slide-content pre code.code-lines-processed .code-line.has-inline-highlight.fragment-highlight-pending .code-line-highlight-span {
+        background: transparent;
+        box-shadow: none;
+      }
+      .slide-two-col {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .slide-two-col--right-40 {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      }
+      .slide-two-col--left-40 {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+      }
+      .slide-two-col--left-40 .slide-two-col__left,
+      .slide-two-col--left-40 .slide-two-col__text {
+        grid-column: 2;
+      }
+      .slide-two-col--left-40 .slide-two-col__right,
+      .slide-two-col--left-40 .slide-two-col__code {
+        grid-column: 1;
+      }
+      .slide-two-col__left,
+      .slide-two-col__right,
+      .slide-two-col__text,
+      .slide-two-col__code {
+        min-width: 0;
+      }
+      .slide-two-col__code pre {
+        margin: 0;
+        max-height: min(64vh, 700px);
+        overflow: auto;
+      }
+      @media (max-width: 980px) {
+        .slide-two-col {
+          grid-template-columns: 1fr;
+        }
+      }
+      .slide blockquote {
+        margin: 1rem 0;
+        padding: 0.7rem 0.95rem;
+        border-left: 4px solid var(--accent-2);
+        background: var(--card);
+        color: var(--muted);
+      }
+      .slide a { color: var(--accent); }
+      .slide-footer {
+        position: absolute;
+        left: clamp(1.4rem, 2.6vw, 2.4rem);
+        right: clamp(1.4rem, 2.6vw, 2.4rem);
+        bottom: clamp(0.75rem, 1.7vw, 1.2rem);
+        margin-top: 0;
+        padding-top: 0.42rem;
+        border-top: 1px solid rgba(255,255,255,0.18);
+        color: var(--muted);
+        font-size: clamp(0.82rem, 1.05vw, 0.96rem);
+        line-height: 1.35;
+        text-align: left;
+      }
+      .slide-footer a {
+        color: var(--accent);
+      }
+      .deck-controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.7rem 1rem 1rem;
+      }
+      .deck-btn {
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.08);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 0.45rem 0.95rem;
+        cursor: pointer;
+        font-size: 0.92rem;
+      }
+      .deck-btn:hover { background: rgba(255,255,255,0.16); }
+      .deck-help {
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--muted);
+        padding-bottom: 1rem;
+      }
+      .deck-global-footer {
+        position: fixed;
+        left: 0.85rem;
+        bottom: 0.8rem;
+        z-index: 24;
+        max-width: calc(100vw - 7.5rem);
+        font-size: 0.74rem;
+        color: var(--muted);
+        opacity: 0.78;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+      }
+      .deck-global-footer:empty {
+        display: none;
+      }
+      .fragment-hidden {
+        visibility: hidden;
+      }
+      .fragment-preview-pending {
+        opacity: var(--presenter-pending-opacity, 0.7);
+      }
+      .presenter-slide-content .code-line.is-highlight.fragment-preview-pending {
+        background: rgba(110,231,255,0.12);
+        box-shadow: inset 0 0 0 1px rgba(110,231,255,0.26);
+      }
+      .speaker-note {
+        display: none !important;
+      }
+      .deck-settings-toggle {
+        position: fixed;
+        right: 0.8rem;
+        bottom: 0.8rem;
+        z-index: 30;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(7, 10, 22, 0.72);
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 0.3rem 0.65rem;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+        opacity: 0.58;
+        transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+      }
+      .deck-settings-toggle:hover,
+      .deck-settings-toggle[aria-expanded="true"] {
+        opacity: 1;
+        color: var(--text);
+        background: rgba(14, 20, 42, 0.92);
+      }
+      .deck-settings-panel {
+        position: fixed;
+        right: 0.8rem;
+        bottom: 2.9rem;
+        z-index: 30;
+        width: min(300px, calc(100vw - 1.6rem));
+        padding: 0.75rem;
+        border: 1px solid rgba(255,255,255,0.22);
+        border-radius: 12px;
+        background: rgba(10, 15, 33, 0.96);
+        box-shadow: 0 16px 36px rgba(0,0,0,0.36);
+      }
+      .deck-settings-option {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin-bottom: 0.7rem;
+        color: var(--text);
+        font-size: 0.9rem;
+      }
+      .deck-settings-option input {
+        margin: 0;
+      }
+      .deck-settings-divider {
+        height: 1px;
+        margin: 0.75rem 0;
+        background: rgba(255,255,255,0.14);
+      }
+      .deck-settings-countdown {
+        margin-bottom: 0.7rem;
+      }
+      .deck-settings-countdown-row {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+      .deck-settings-countdown-icon {
+        color: var(--muted);
+        font-size: 0.98rem;
+        line-height: 1;
+      }
+      .deck-settings-countdown-thresholds {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin-top: 0.42rem;
+      }
+      .deck-settings-threshold-label {
+        color: var(--muted);
+        font-size: 0.74rem;
+        line-height: 1;
+      }
+      .deck-settings-threshold-input {
+        width: 3.95rem;
+        min-width: 0;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 8px;
+        background: rgba(255,255,255,0.05);
+        color: var(--text);
+        padding: 0.3rem 0.38rem;
+        font-size: 0.76rem;
+        line-height: 1.1;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+      .deck-settings-threshold-input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .deck-settings-countdown-input {
+        flex: 1;
+        min-width: 7.5rem;
+        border: 1px solid rgba(255,255,255,0.24);
+        border-radius: 9px;
+        background: rgba(255,255,255,0.06);
+        color: var(--text);
+        padding: 0.48rem 0.62rem;
+        font-size: 0.98rem;
+        line-height: 1.1;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        letter-spacing: 0.02em;
+      }
+      .deck-settings-countdown-input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .deck-settings-countdown-input.timer-running {
+        border-color: rgba(74,222,128,0.88);
+        box-shadow: 0 0 0 1px rgba(74,222,128,0.28);
+      }
+      .deck-settings-countdown-input.timer-running.timer-warning {
+        border-color: rgba(250,204,21,0.9);
+        box-shadow: 0 0 0 1px rgba(250,204,21,0.34);
+      }
+      .deck-settings-countdown-input.timer-running.timer-danger {
+        border-color: rgba(251,113,133,0.92);
+        box-shadow: 0 0 0 1px rgba(251,113,133,0.36);
+      }
+      .deck-btn--small {
+        width: 100%;
+        font-size: 0.85rem;
+        padding: 0.4rem 0.7rem;
+      }
+      .deck-settings-icon-btn {
+        width: 2.05rem;
+        min-width: 2.05rem;
+        height: 2.05rem;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        line-height: 1;
+      }
+      .deck-settings-link-btn {
+        border: none;
+        background: transparent;
+        color: var(--accent);
+        padding: 0;
+        margin: 0.1rem 0 0.55rem;
+        font-size: 0.82rem;
+        line-height: 1.2;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+      .deck-settings-link-btn:hover {
+        color: #9cecff;
+      }
+      .deck-btn--small + .deck-btn--small {
+        margin-top: 0.5rem;
+      }
+      .slide-nav-modal,
+      .theme-settings-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 45;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        background: rgba(3, 6, 14, 0.72);
+        backdrop-filter: blur(4px);
+      }
+      .slide-nav-modal[hidden],
+      .theme-settings-modal[hidden] {
+        display: none !important;
+      }
+      .slide-nav-panel {
+        width: min(760px, calc(100vw - 2rem));
+        max-height: min(78vh, 760px);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 14px;
+        background: rgba(10, 15, 33, 0.98);
+        box-shadow: 0 20px 44px rgba(0,0,0,0.42);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .slide-nav-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.65rem 0.8rem;
+        border-bottom: 1px solid rgba(255,255,255,0.15);
+      }
+      .slide-nav-title {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+      .slide-nav-list {
+        list-style: none;
+        margin: 0;
+        padding: 0.45rem;
+        overflow: auto;
+      }
+      .theme-settings-panel {
+        width: min(520px, calc(100vw - 2rem));
+        max-height: min(82vh, 760px);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 14px;
+        background: rgba(10, 15, 33, 0.98);
+        box-shadow: 0 20px 44px rgba(0,0,0,0.42);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .theme-settings-body {
+        padding: 0.75rem 0.85rem;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.55rem;
+        overflow: auto;
+      }
+      .theme-settings-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 10px;
+        background: rgba(255,255,255,0.03);
+        padding: 0.55rem 0.62rem;
+      }
+      .theme-settings-row-name {
+        color: var(--text);
+        font-size: 0.86rem;
+        line-height: 1.2;
+      }
+      .theme-settings-row-input {
+        width: 2.35rem;
+        height: 1.7rem;
+        border: 1px solid rgba(255,255,255,0.28);
+        border-radius: 6px;
+        background: transparent;
+        padding: 0;
+        cursor: pointer;
+      }
+      .theme-settings-row-control {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.52rem;
+        min-width: 10.5rem;
+      }
+      .theme-settings-row-input--range {
+        width: 7.8rem;
+        height: auto;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        padding: 0;
+      }
+      .theme-settings-row-value {
+        min-width: 3.05rem;
+        text-align: right;
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .theme-settings-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0.65rem 0.85rem 0.8rem;
+        border-top: 1px solid rgba(255,255,255,0.14);
+      }
+      .slide-nav-item {
+        width: 100%;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.02);
+        color: var(--text);
+        cursor: pointer;
+        padding: 0.56rem 0.62rem;
+        display: flex;
+        gap: 0.65rem;
+        align-items: baseline;
+        text-align: left;
+      }
+      .slide-nav-item:hover {
+        background: rgba(255,255,255,0.08);
+        border-color: rgba(255,255,255,0.16);
+      }
+      .slide-nav-item:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .slide-nav-item.is-active {
+        background: rgba(96,165,250,0.18);
+        border-color: rgba(110,231,255,0.42);
+      }
+      .slide-nav-item-num {
+        color: var(--accent);
+        font-size: 0.8rem;
+        min-width: 3.1rem;
+      }
+      .slide-nav-item-title {
+        color: var(--text);
+        font-size: 0.9rem;
+      }
+      .presenter-shell {
+        display: none;
+      }
+      body.presenter-mode {
+        background: var(--presenter-bg);
+      }
+      body.presenter-mode .deck-shell {
+        display: none;
+      }
+      body.presenter-mode .deck-global-footer {
+        display: none !important;
+      }
+      body.presenter-mode .presenter-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) minmax(180px, 34vh);
+        gap: 0.85rem;
+        padding: 0.85rem;
+      }
+      .presenter-topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 12px;
+        padding: 0.65rem 0.9rem;
+        background: var(--presenter-panel-bg);
+      }
+      .presenter-title {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      .presenter-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+      }
+      .presenter-btn {
+        font-size: 0.77rem;
+        padding: 0.32rem 0.62rem;
+      }
+      .presenter-scale-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.77rem;
+        color: var(--muted);
+      }
+      .presenter-scale-control input[type="range"] {
+        width: 110px;
+      }
+      .presenter-scale-value {
+        min-width: 3.2rem;
+        text-align: right;
+        color: var(--text);
+      }
+      .presenter-countdown {
+        min-width: 4.3rem;
+        text-align: right;
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 0.88rem;
+        letter-spacing: 0.03em;
+        font-variant-numeric: tabular-nums;
+      }
+      .presenter-countdown.is-warning {
+        color: #facc15;
+      }
+      .presenter-countdown.is-danger,
+      .presenter-countdown.is-complete {
+        color: #fb7185;
+      }
+      body.presenter-mode.presenter-timer-warning .presenter-topbar {
+        border-color: rgba(250,204,21,0.68);
+        box-shadow: 0 0 0 1px rgba(250,204,21,0.25);
+      }
+      body.presenter-mode.presenter-timer-danger .presenter-topbar {
+        border-color: rgba(251,113,133,0.74);
+        background: rgba(58, 13, 24, 0.92);
+        box-shadow: 0 0 0 1px rgba(251,113,133,0.28);
+      }
+      .presenter-counter {
+        color: var(--accent);
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      .presenter-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.85rem;
+        min-height: 0;
+      }
+      body.presenter-mode.presenter-panel-hidden-current .presenter-pane--current,
+      body.presenter-mode.presenter-panel-hidden-next .presenter-pane--next,
+      body.presenter-mode.presenter-panel-hidden-notes .presenter-notes {
+        display: none;
+      }
+      body.presenter-mode.presenter-panel-hidden-current .presenter-grid,
+      body.presenter-mode.presenter-panel-hidden-next .presenter-grid {
+        grid-template-columns: 1fr;
+      }
+      body.presenter-mode.presenter-panel-hidden-current.presenter-panel-hidden-next .presenter-grid {
+        display: none;
+      }
+      body.presenter-mode.presenter-panel-hidden-notes .presenter-shell {
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+      .presenter-pane {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 12px;
+        background: var(--presenter-panel-bg);
+        overflow: hidden;
+      }
+      .presenter-pane-header,
+      .presenter-notes-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        padding: 0.55rem 0.75rem;
+        border-bottom: 1px solid rgba(255,255,255,0.13);
+        background: rgba(255,255,255,0.03);
+      }
+      .presenter-pane h2,
+      .presenter-notes h2 {
+        margin: 0;
+        padding: 0;
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .presenter-panel-close-btn {
+        font-size: 0.7rem;
+        padding: 0.18rem 0.5rem;
+        white-space: nowrap;
+      }
+      .presenter-slide-frame {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 0.8rem;
+      }
+      .presenter-slide-frame--notes ul {
+        margin: 0;
+        padding-left: 1.2rem;
+      }
+      .presenter-slide-frame--notes li {
+        margin-bottom: 0.45rem;
+        line-height: 1.45;
+        font-size: 0.95rem;
+      }
+      .presenter-slide-content {
+        min-height: 100%;
+        background: linear-gradient(155deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 12px;
+        padding: 0.9rem;
+        padding-bottom: 2.35rem;
+        position: relative;
+        transform-origin: top left;
+        transform: scale(var(--presenter-preview-scale, 1));
+        width: calc(100% / var(--presenter-preview-scale, 1));
+        min-height: calc(100% / var(--presenter-preview-scale, 1));
+      }
+      .presenter-slide-content h1,
+      .presenter-slide-content h2,
+      .presenter-slide-content h3 {
+        margin-top: 0;
+      }
+      .presenter-slide-content p,
+      .presenter-slide-content li {
+        font-size: 0.95rem;
+        line-height: 1.45;
+      }
+      .presenter-slide-content .slide-footer {
+        left: 0.9rem;
+        right: 0.9rem;
+        bottom: 0.6rem;
+        margin-top: 0;
+        padding-top: 0.34rem;
+        font-size: 0.8rem;
+      }
+      .presenter-slide-content img,
+      .presenter-slide-content video,
+      .presenter-slide-content iframe {
+        max-width: 100%;
+        height: auto;
+      }
+      body.presenter-mode:not(.presenter-panel-hidden-current):not(.presenter-panel-hidden-next) .presenter-slide-content img,
+      body.presenter-mode:not(.presenter-panel-hidden-current):not(.presenter-panel-hidden-next) .presenter-slide-content video,
+      body.presenter-mode:not(.presenter-panel-hidden-current):not(.presenter-panel-hidden-next) .presenter-slide-content iframe {
+        max-height: min(26vh, 220px);
+        width: auto;
+        object-fit: contain;
+      }
+      .presenter-slide-content pre {
+        background: #0a1329;
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 10px;
+        padding: 0.6rem 0.75rem;
+        overflow: auto;
+      }
+      .presenter-slide-content code {
+        font-size: 0.9em;
+      }
+      .presenter-empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100%;
+        color: var(--muted);
+        border: 1px dashed rgba(255,255,255,0.2);
+        border-radius: 12px;
+      }
+      .presenter-notes {
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 12px;
+        background: var(--presenter-panel-bg);
+        overflow: hidden;
+        min-height: 0;
+      }
+      .presenter-notes-body {
+        height: 100%;
+        max-height: calc(34vh - 2.2rem);
+        overflow: auto;
+        padding: 0.75rem 0.9rem;
+        font-size: calc(0.95rem * var(--presenter-preview-scale, 1));
+      }
+      .presenter-notes-body ul {
+        margin: 0;
+        padding-left: 1.2rem;
+      }
+      .presenter-notes-body li {
+        margin-bottom: 0.45em;
+        line-height: 1.45;
+      }
+      .presenter-notes-empty {
+        margin: 0;
+        color: var(--muted);
+      }
+      @media (max-width: 1120px) {
+        body.presenter-mode .presenter-shell {
+          grid-template-rows: auto minmax(0, 1fr) minmax(160px, 32vh);
+        }
+        .presenter-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media print {
+        .deck-topbar, .deck-controls, .deck-help, .deck-settings-toggle, .deck-settings-panel, .deck-global-footer, .slide-nav-modal, .theme-settings-modal, .presenter-shell { display: none !important; }
+        .slide {
+          display: block !important;
+          page-break-after: always;
+          min-height: auto;
+          border: none;
+          box-shadow: none;
+          background: white;
+          color: black;
+        }
+        body { background: white; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="deck-shell">
+      <header class="deck-topbar">
+        <div class="deck-title">{{ title }}</div>
+        <div class="deck-counter" id="deckCounter">Slide 1 / 1</div>
+      </header>
+      <main class="deck-stage">
+        <article id="deck">
+          {{ content }}
+        </article>
+      </main>
+      <footer>
+        <div class="deck-controls">
+          <button class="deck-btn" id="prevBtn" type="button">← Previous</button>
+          <button class="deck-btn" id="nextBtn" type="button">Next →</button>
+        </div>
+        <div class="deck-help">Keyboard: ←/→ arrows, PgUp/PgDn, space, S/N (slide navigator)</div>
+      </footer>
+    </div>
+    <div class="deck-global-footer">{{ globals.footer }}</div>
+    <template id="slidesFooterDefaultCamel">{{ slidesFooter }}</template>
+    <template id="slidesFooterDefaultSnake">{{ slides_footer }}</template>
+    <template id="slidesFooterDefaultKebab">{{ slides-footer }}</template>
+    <button class="deck-settings-toggle" id="deckSettingsToggle" type="button" aria-controls="deckSettingsPanel" aria-expanded="false">settings</button>
+    <aside class="deck-settings-panel" id="deckSettingsPanel" hidden>
+      <label class="deck-settings-option" for="revealBulletsToggle">
+        <input id="revealBulletsToggle" type="checkbox">
+        Reveal bullets one-by-one
+      </label>
+      <div class="deck-settings-divider" aria-hidden="true"></div>
+      <div class="deck-settings-countdown">
+        <div class="deck-settings-countdown-row">
+          <span class="deck-settings-countdown-icon" aria-hidden="true">⏱</span>
+          <input id="countdownInput" class="deck-settings-countdown-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" value="10:00" aria-label="Countdown duration in minutes and seconds">
+          <button class="deck-btn deck-settings-icon-btn" id="countdownStartBtn" type="button" aria-label="Start countdown" title="Start countdown">▶</button>
+          <button class="deck-btn deck-settings-icon-btn" id="countdownStopBtn" type="button" aria-label="Stop countdown" title="Stop countdown">⏹</button>
+          <button class="deck-btn deck-settings-icon-btn" id="countdownClearBtn" type="button" aria-label="Clear countdown" title="Clear countdown">🗑</button>
+        </div>
+        <div class="deck-settings-countdown-thresholds">
+          <span class="deck-settings-threshold-label" aria-hidden="true">🟡</span>
+          <input id="countdownWarnInput" class="deck-settings-threshold-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" value="05:00" aria-label="Warning threshold in minutes and seconds">
+          <span class="deck-settings-threshold-label" aria-hidden="true">🔴</span>
+          <input id="countdownDangerInput" class="deck-settings-threshold-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" value="01:00" aria-label="Danger threshold in minutes and seconds">
+        </div>
+      </div>
+      <button class="deck-btn deck-btn--small" id="openPresenterBtn" type="button">Open presenter window</button>
+      <button class="deck-btn deck-btn--small" id="openSlideNavBtn" type="button">Open slide navigator (S / N)</button>
+      <button class="deck-settings-link-btn" id="openThemeSettingsBtn" type="button">Theme settings…</button>
+    </aside>
+    <div class="slide-nav-modal" id="slideNavModal" hidden aria-hidden="true">
+      <div class="slide-nav-panel" role="dialog" aria-modal="true" aria-labelledby="slideNavTitle">
+        <header class="slide-nav-header">
+          <h2 class="slide-nav-title" id="slideNavTitle">Slide navigator</h2>
+          <button class="deck-btn presenter-btn" id="slideNavCloseBtn" type="button">Close</button>
+        </header>
+        <ul class="slide-nav-list" id="slideNavList" tabindex="-1"></ul>
+      </div>
+    </div>
+    <div class="theme-settings-modal" id="themeSettingsModal" hidden aria-hidden="true">
+      <div class="theme-settings-panel" role="dialog" aria-modal="true" aria-labelledby="themeSettingsTitle">
+        <header class="slide-nav-header">
+          <h2 class="slide-nav-title" id="themeSettingsTitle">Theme settings</h2>
+          <button class="deck-btn presenter-btn" id="themeSettingsCloseBtn" type="button">Close</button>
+        </header>
+        <div class="theme-settings-body">
+          <label class="theme-settings-row" for="themeDeckBackgroundInput">
+            <span class="theme-settings-row-name">Deck background</span>
+            <input class="theme-settings-row-input" id="themeDeckBackgroundInput" type="color" value="#0b1020" aria-label="Deck background color">
+          </label>
+          <label class="theme-settings-row" for="themeDeckGlowLeftInput">
+            <span class="theme-settings-row-name">Deck glow (left)</span>
+            <input class="theme-settings-row-input" id="themeDeckGlowLeftInput" type="color" value="#1f2a56" aria-label="Deck left glow color">
+          </label>
+          <label class="theme-settings-row" for="themeDeckGlowRightInput">
+            <span class="theme-settings-row-name">Deck glow (right)</span>
+            <input class="theme-settings-row-input" id="themeDeckGlowRightInput" type="color" value="#17395f" aria-label="Deck right glow color">
+          </label>
+          <label class="theme-settings-row" for="themePresenterBackgroundInput">
+            <span class="theme-settings-row-name">Presenter background</span>
+            <input class="theme-settings-row-input" id="themePresenterBackgroundInput" type="color" value="#050814" aria-label="Presenter background color">
+          </label>
+          <label class="theme-settings-row" for="themePresenterPanelInput">
+            <span class="theme-settings-row-name">Presenter panel background</span>
+            <input class="theme-settings-row-input" id="themePresenterPanelInput" type="color" value="#0a0f21" aria-label="Presenter panel background color">
+          </label>
+          <label class="theme-settings-row" for="themePresenterPendingOpacityInput">
+            <span class="theme-settings-row-name">Presenter pending opacity</span>
+            <span class="theme-settings-row-control">
+              <input class="theme-settings-row-input theme-settings-row-input--range" id="themePresenterPendingOpacityInput" type="range" min="20" max="100" step="5" value="70" aria-label="Presenter pending opacity percent">
+              <span class="theme-settings-row-value" id="themePresenterPendingOpacityValue">70%</span>
+            </span>
+          </label>
+        </div>
+        <footer class="theme-settings-footer">
+          <button class="deck-btn presenter-btn" id="themeSettingsResetBtn" type="button">Reset defaults</button>
+          <button class="deck-btn presenter-btn" id="themeSettingsDoneBtn" type="button">Done</button>
+        </footer>
+      </div>
+    </div>
+    <section class="presenter-shell" id="presenterShell" hidden>
+      <header class="presenter-topbar">
+        <div class="presenter-title">{{ title }} — Presenter view</div>
+        <div class="presenter-toolbar">
+          <button class="deck-btn presenter-btn" id="presenterResetLayoutBtn" type="button">Reset layout</button>
+          <label class="presenter-scale-control" for="presenterScaleRange">
+            <span>Scale</span>
+            <input id="presenterScaleRange" type="range" min="60" max="140" step="5" value="100" aria-label="Presenter preview scale">
+            <span class="presenter-scale-value" id="presenterScaleValue">100%</span>
+          </label>
+          <div class="presenter-countdown" id="presenterCountdown" hidden>00:00</div>
+          <div class="presenter-counter" id="presenterCounter">Slide 1 / 1</div>
+        </div>
+      </header>
+      <div class="presenter-grid">
+        <section class="presenter-pane presenter-pane--current">
+          <div class="presenter-pane-header">
+            <h2>Current slide</h2>
+            <button class="deck-btn presenter-panel-close-btn" type="button" data-close-panel="current" aria-label="Close current panel" title="Close panel">✕</button>
+          </div>
+          <div class="presenter-slide-frame" id="presenterCurrent"></div>
+        </section>
+        <section class="presenter-pane presenter-pane--next">
+          <div class="presenter-pane-header">
+            <h2 id="presenterNextHeading">Next slide</h2>
+            <button class="deck-btn presenter-panel-close-btn" type="button" data-close-panel="next" aria-label="Close next panel" title="Close panel">✕</button>
+          </div>
+          <div class="presenter-slide-frame" id="presenterNext"></div>
+        </section>
+      </div>
+      <section class="presenter-notes">
+        <div class="presenter-notes-header">
+          <h2>Speaker notes</h2>
+          <button class="deck-btn presenter-panel-close-btn" type="button" data-close-panel="notes" aria-label="Close notes panel" title="Close panel">✕</button>
+        </div>
+        <div class="presenter-notes-body" id="presenterNotes"></div>
+      </section>
+    </section>
+    <script>
+      (function () {
+        const deck = document.getElementById("deck");
+        if (!deck) return;
+        const STORAGE_SETTINGS_KEY = "markspresso.presentation.settings.v1";
+        const STORAGE_STATE_KEY = "markspresso.presentation.state.v1";
+        const NOTE_PREFIX_RE = /^(speaker note|speaker notes|speaker tip|demo cue|demo framing|talk track|narration|backup plan)\s*:\s*/i;
+        const PRESENTER_SCALE_MIN = 60;
+        const PRESENTER_SCALE_MAX = 140;
+        const PRESENTER_SCALE_DEFAULT = 100;
+        const PRESENTER_SCALE_STEP = 5;
+        const COUNTDOWN_DEFAULT_SECONDS = 10 * 60;
+        const COUNTDOWN_WARNING_DEFAULT_SECONDS = 5 * 60;
+        const COUNTDOWN_DANGER_DEFAULT_SECONDS = 1 * 60;
+        const THEME_PENDING_OPACITY_MIN = 20;
+        const THEME_PENDING_OPACITY_MAX = 100;
+        const THEME_PENDING_OPACITY_STEP = 5;
+        const THEME_PENDING_OPACITY_DEFAULT = 70;
+        const THEME_COLOR_DEFAULTS = {
+          deckBackground: "#0b1020",
+          deckGlowLeft: "#1f2a56",
+          deckGlowRight: "#17395f",
+          presenterBackground: "#050814",
+          presenterPanelBackground: "#0a0f21",
+          presenterPendingOpacityPercent: THEME_PENDING_OPACITY_DEFAULT
+        };
+        const THEME_COLOR_CSS_VARIABLES = {
+          deckBackground: "--bg",
+          deckGlowLeft: "--bg-radial-left",
+          deckGlowRight: "--bg-radial-right",
+          presenterBackground: "--presenter-bg",
+          presenterPanelBackground: "--presenter-panel-bg"
+        };
+        const isPresenterMode = new URLSearchParams(window.location.search).get("presenter") === "1";
+        const sessionId = Math.random().toString(36).slice(2);
+        const channelName = "markspresso.presentation." + (window.location.pathname || "/").replace(/[^a-z0-9]/gi, "_");
+        const channel = (() => {
+          try {
+            return typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(channelName) : null;
+          } catch (e) {
+            return null;
+          }
+        })();
+        const globalFooter = document.querySelector(".deck-global-footer");
+        if (globalFooter) {
+          const unresolvedFooterToken = String(globalFooter.textContent || "").trim();
+          if (/^\{\{\s*globals\.footer\s*\}\}$/i.test(unresolvedFooterToken)) {
+            globalFooter.textContent = "";
+          }
+        }
+        function normalizeSlideFooterValue(value) {
+          const trimmed = String(value || "").trim();
+          if (!trimmed) return "";
+          if (/^\{\{\s*[^}]+\s*\}\}$/.test(trimmed)) return "";
+          return trimmed;
+        }
+        function escapeHtml(value) {
+          return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+        }
+        function renderSlideFooterMarkup(value) {
+          const normalized = normalizeSlideFooterValue(value);
+          if (!normalized || /^none$/i.test(normalized)) return "";
+          if (/<[a-z][\s\S]*>/i.test(normalized)) {
+            return normalized;
+          }
+          return escapeHtml(normalized).replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (match, label, href) => {
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+          });
+        }
+        function extractSlideFooterDirective(slideHtml) {
+          let hasDirective = false;
+          let footerValue = "";
+          const html = String(slideHtml || "").replace(/<!--\s*slide-footer\s*:\s*([\s\S]*?)-->/gi, (match, value) => {
+            hasDirective = true;
+            footerValue = String(value || "").trim();
+            return "";
+          });
+          return { html: html.trim(), hasDirective, footerValue };
+        }
+        function readSlidesFooterDefault() {
+          const templateIds = [
+            "slidesFooterDefaultCamel",
+            "slidesFooterDefaultSnake",
+            "slidesFooterDefaultKebab"
+          ];
+          for (const templateId of templateIds) {
+            const template = document.getElementById(templateId);
+            if (!template) continue;
+            const normalizedValue = normalizeSlideFooterValue(template.innerHTML);
+            if (normalizedValue) return normalizedValue;
+          }
+          return "";
+        }
+        const raw = deck.innerHTML;
+        const parts = raw.split(/<hr\b[^>]*>/i).map(s => s.trim()).filter(Boolean);
+        const sourceSlides = parts.length ? parts : [raw];
+        const defaultSlidesFooter = readSlidesFooterDefault();
+        const preparedSlides = sourceSlides.map((slideHtml) => {
+          const extracted = extractSlideFooterDirective(slideHtml);
+          const footerSource = extracted.hasDirective ? extracted.footerValue : defaultSlidesFooter;
+          return {
+            html: extracted.html,
+            footerHtml: renderSlideFooterMarkup(footerSource)
+          };
+        });
+        const slideIdWidth = Math.max(2, String(preparedSlides.length || 1).length);
+        function formatSlideId(slideIndex) {
+          return `slide${String(slideIndex + 1).padStart(slideIdWidth, "0")}`;
+        }
+        const slidesHtml = preparedSlides.map((slideData, idx) => {
+          const slideId = formatSlideId(idx);
+          const footerMarkup = slideData.footerHtml
+            ? `<div class="slide-footer">${slideData.footerHtml}</div>`
+            : "";
+          return `<section class="slide${idx === 0 ? " active" : ""}" id="${slideId}" data-slide="${idx + 1}">${slideData.html}${footerMarkup}</section>`;
+        }).join("");
+        deck.innerHTML = slidesHtml;
+        const slides = Array.from(deck.querySelectorAll(".slide"));
+        function getTwoColVariantClass(hasLeft40Marker, hasRight40Marker) {
+          return hasLeft40Marker
+            ? "slide-two-col slide-two-col--left-40"
+            : (hasRight40Marker ? "slide-two-col slide-two-col--right-40" : "slide-two-col");
+        }
+
+        function applyTwoColCodeLayout(slide) {
+          const hasDefaultMarker = /<!--\s*two-col-code\s*-->/i.test(slide.innerHTML);
+          const hasRight40Marker = /<!--\s*two-col-code-right-40\s*-->/i.test(slide.innerHTML);
+          const hasLeft40Marker = /<!--\s*two-col-code-left-40\s*-->/i.test(slide.innerHTML);
+          if (!hasDefaultMarker && !hasRight40Marker && !hasLeft40Marker) return false;
+          slide.innerHTML = slide.innerHTML
+            .replace(/<!--\s*two-col-code\s*-->/gi, "")
+            .replace(/<!--\s*two-col-code-right-40\s*-->/gi, "")
+            .replace(/<!--\s*two-col-code-left-40\s*-->/gi, "");
+          const pre = slide.querySelector("pre");
+          if (!pre) return false;
+          const codeNode = (pre.parentElement && pre.parentElement !== slide && pre.parentElement.parentElement === slide && pre.parentElement.children.length === 1)
+            ? pre.parentElement
+            : pre;
+          const wrapper = document.createElement("div");
+          wrapper.className = getTwoColVariantClass(hasLeft40Marker, hasRight40Marker);
+          const textCol = document.createElement("div");
+          textCol.className = "slide-two-col__left slide-two-col__text";
+          const codeCol = document.createElement("div");
+          codeCol.className = "slide-two-col__right slide-two-col__code";
+          const nodes = Array.from(slide.childNodes);
+          for (const node of nodes) {
+            if (node === codeNode) continue;
+            textCol.appendChild(node);
+          }
+          codeCol.appendChild(codeNode);
+          wrapper.appendChild(textCol);
+          wrapper.appendChild(codeCol);
+          slide.appendChild(wrapper);
+          return true;
+        }
+
+        function isColumnBreakComment(node) {
+          if (!node || node.nodeType !== Node.COMMENT_NODE) return false;
+          return /^(?:\s*(?:col-break|two-col-break|column-break|col-right|right-col)\s*)$/i.test(node.nodeValue || "");
+        }
+
+        function findPreferredSimpleSplitIndex(nodes) {
+          const mediaSelector = "img, picture, figure, video, iframe, pre, table";
+          for (let i = 0; i < nodes.length; i += 1) {
+            const node = nodes[i];
+            if (!node || node.nodeType !== Node.ELEMENT_NODE) continue;
+            if (
+              (node.matches && node.matches(mediaSelector)) ||
+              (node.querySelector && node.querySelector(mediaSelector))
+            ) {
+              return i;
+            }
+          }
+          return -1;
+        }
+
+        function applyTwoColSimpleLayout(slide) {
+          const hasDefaultMarker = /<!--\s*two-col\s*-->/i.test(slide.innerHTML);
+          const hasRight40Marker = /<!--\s*two-col-right-40\s*-->/i.test(slide.innerHTML);
+          const hasLeft40Marker = /<!--\s*two-col-left-40\s*-->/i.test(slide.innerHTML);
+          if (!hasDefaultMarker && !hasRight40Marker && !hasLeft40Marker) return false;
+
+          slide.innerHTML = slide.innerHTML
+            .replace(/<!--\s*two-col\s*-->/gi, "")
+            .replace(/<!--\s*two-col-right-40\s*-->/gi, "")
+            .replace(/<!--\s*two-col-left-40\s*-->/gi, "");
+
+          const wrapper = document.createElement("div");
+          wrapper.className = getTwoColVariantClass(hasLeft40Marker, hasRight40Marker);
+          const leftCol = document.createElement("div");
+          leftCol.className = "slide-two-col__left";
+          const rightCol = document.createElement("div");
+          rightCol.className = "slide-two-col__right";
+
+          const nodes = Array.from(slide.childNodes);
+          const breakIndex = nodes.findIndex((node) => isColumnBreakComment(node));
+          if (breakIndex >= 0) {
+            nodes.forEach((node, nodeIndex) => {
+              if (nodeIndex === breakIndex) return;
+              (nodeIndex < breakIndex ? leftCol : rightCol).appendChild(node);
+            });
+          } else {
+            const contentNodes = nodes.filter((node) => {
+              if (node.nodeType === Node.COMMENT_NODE) {
+                return !!(node.nodeValue || "").trim();
+              }
+              if (node.nodeType === Node.TEXT_NODE) {
+                return !!(node.textContent || "").trim();
+              }
+              return true;
+            });
+            if (!contentNodes.length) return false;
+            let splitAt = findPreferredSimpleSplitIndex(contentNodes);
+            if (splitAt < 1 || splitAt >= contentNodes.length) {
+              splitAt = Math.ceil(contentNodes.length / 2);
+            }
+            contentNodes.forEach((node, nodeIndex) => {
+              (nodeIndex < splitAt ? leftCol : rightCol).appendChild(node);
+            });
+          }
+
+          wrapper.appendChild(leftCol);
+          wrapper.appendChild(rightCol);
+          slide.appendChild(wrapper);
+          return true;
+        }
+
+        function setAutoCodeFragment(node, shouldEnable) {
+          if (!node) return;
+          const AUTO_FRAGMENT_ATTR = "data-auto-fragment";
+          if (shouldEnable) {
+            if (!node.classList.contains("fragment")) {
+              node.classList.add("fragment");
+              node.setAttribute(AUTO_FRAGMENT_ATTR, "1");
+            }
+            node.classList.add("fragment-auto-code");
+            return;
+          }
+          if (!node.classList.contains("fragment-auto-code")) return;
+          node.classList.remove("fragment-auto-code");
+          if (node.getAttribute(AUTO_FRAGMENT_ATTR) === "1") {
+            node.classList.remove("fragment");
+            node.removeAttribute(AUTO_FRAGMENT_ATTR);
+          }
+        }
+
+        function hasRevealableBulletTargets(root) {
+          if (!root) return false;
+          return Array.from(root.querySelectorAll("li, .fragment")).some((el) => {
+            if (el.classList.contains("fragment-auto-code")) return false;
+            return !el.closest(".speaker-note");
+          });
+        }
+
+        function markDeferredCodeFragments(slide) {
+          const twoColWrappers = Array.from(slide.querySelectorAll(".slide-two-col"));
+          twoColWrappers.forEach((wrapper) => {
+            const textCol = wrapper.querySelector(".slide-two-col__text");
+            const codeCol = wrapper.querySelector(".slide-two-col__code");
+            if (!textCol || !codeCol) return;
+            setAutoCodeFragment(codeCol, hasRevealableBulletTargets(textCol));
+          });
+
+          const preBlocks = Array.from(slide.querySelectorAll("pre"));
+          preBlocks.forEach((pre) => {
+            if (pre.closest(".speaker-note")) return;
+            if (pre.closest(".slide-two-col__code")) return;
+            if (pre.closest("li")) return;
+
+            const revealNode = (pre.parentElement && pre.parentElement !== slide && pre.parentElement.children.length === 1 && !pre.parentElement.closest("li"))
+              ? pre.parentElement
+              : pre;
+
+            const revealTargets = Array.from(slide.querySelectorAll("li, .fragment")).filter((el) => {
+              if (el === revealNode) return false;
+              if (el.classList.contains("fragment-auto-code")) return false;
+              return !el.closest(".speaker-note");
+            });
+            const shouldDeferCode = revealTargets.some((target) => {
+              const position = target.compareDocumentPosition(revealNode);
+              return Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+            setAutoCodeFragment(revealNode, shouldDeferCode);
+          });
+        }
+
+        function markSpeakerNotes(slide) {
+          const blockquotes = Array.from(slide.querySelectorAll("blockquote"));
+          for (const quote of blockquotes) {
+            const text = (quote.textContent || "").trim();
+            if (NOTE_PREFIX_RE.test(text)) {
+              quote.classList.add("speaker-note");
+            }
+          }
+        }
+
+        function extractCodeHighlightSpec(preNode) {
+          let node = preNode ? preNode.previousSibling : null;
+          while (node && node.nodeType === Node.TEXT_NODE && !(node.textContent || "").trim()) {
+            node = node.previousSibling;
+          }
+          if (!node || node.nodeType !== Node.COMMENT_NODE) return "";
+          const match = (node.nodeValue || "").match(/^\s*hl\s*:\s*(.+?)\s*$/i);
+          return match ? match[1].trim() : "";
+        }
+
+        function parseCodeHighlightSpec(spec) {
+          const highlightedLines = new Set();
+          const inlineSpansByLine = new Map();
+          if (!spec) return { highlightedLines, inlineSpansByLine };
+          spec.split(",").forEach((part) => {
+            const token = part.trim();
+            if (!token) return;
+            const spanMatch = token.match(/^(\d+)\s*:\s*(\d+)\s*-\s*(\d+)$/);
+            if (spanMatch) {
+              const line = Number(spanMatch[1]);
+              let start = Number(spanMatch[2]);
+              let end = Number(spanMatch[3]);
+              if (Number.isNaN(line) || Number.isNaN(start) || Number.isNaN(end) || line <= 0) return;
+              if (end < start) {
+                const swap = start;
+                start = end;
+                end = swap;
+              }
+              const spans = inlineSpansByLine.get(line) || [];
+              spans.push({ start, end });
+              inlineSpansByLine.set(line, spans);
+              highlightedLines.add(line);
+              return;
+            }
+            const rangeMatch = token.match(/^(\d+)\s*-\s*(\d+)$/);
+            if (rangeMatch) {
+              let start = Number(rangeMatch[1]);
+              let end = Number(rangeMatch[2]);
+              if (Number.isNaN(start) || Number.isNaN(end)) return;
+              if (end < start) {
+                const swap = start;
+                start = end;
+                end = swap;
+              }
+              for (let line = start; line <= end; line += 1) {
+                if (line > 0) highlightedLines.add(line);
+              }
+              return;
+            }
+            const singleMatch = token.match(/^(\d+)$/);
+            if (!singleMatch) return;
+            const line = Number(singleMatch[1]);
+            if (!Number.isNaN(line) && line > 0) {
+              highlightedLines.add(line);
+            }
+          });
+          return { highlightedLines, inlineSpansByLine };
+        }
+
+        function normalizeInlineHighlightRanges(ranges, lineLength) {
+          if (!Array.isArray(ranges) || !ranges.length || lineLength <= 0) return [];
+          const normalized = ranges
+            .map((range) => {
+              if (!range || typeof range !== "object") return null;
+              let start = Number(range.start);
+              let end = Number(range.end);
+              if (Number.isNaN(start) || Number.isNaN(end)) return null;
+              start = Math.floor(start);
+              end = Math.floor(end);
+              if (end < start) {
+                const swap = start;
+                start = end;
+                end = swap;
+              }
+              start = clamp(start, 0, lineLength - 1);
+              end = clamp(end, 0, lineLength - 1);
+              if (end < start) return null;
+              return { start, end };
+            })
+            .filter(Boolean)
+            .sort((a, b) => {
+              if (a.start !== b.start) return a.start - b.start;
+              return a.end - b.end;
+            });
+          if (!normalized.length) return [];
+          const merged = [normalized[0]];
+          for (let i = 1; i < normalized.length; i += 1) {
+            const current = normalized[i];
+            const previous = merged[merged.length - 1];
+            if (current.start <= previous.end + 1) {
+              previous.end = Math.max(previous.end, current.end);
+            } else {
+              merged.push(current);
+            }
+          }
+          return merged;
+        }
+
+        function appendInlineHighlights(lineNode, lineText, inlineRanges) {
+          if (!lineText.length || !inlineRanges.length) {
+            lineNode.textContent = lineText.length ? lineText : " ";
+            return;
+          }
+          let cursor = 0;
+          inlineRanges.forEach((range) => {
+            if (range.start > cursor) {
+              lineNode.appendChild(document.createTextNode(lineText.slice(cursor, range.start)));
+            }
+            if (range.end >= range.start) {
+              const highlightedText = lineText.slice(range.start, range.end + 1);
+              if (highlightedText) {
+                const highlightSpan = document.createElement("span");
+                highlightSpan.className = "code-line-highlight-span";
+                highlightSpan.textContent = highlightedText;
+                lineNode.appendChild(highlightSpan);
+              }
+            }
+            cursor = Math.max(cursor, range.end + 1);
+          });
+          if (cursor < lineText.length) {
+            lineNode.appendChild(document.createTextNode(lineText.slice(cursor)));
+          }
+          if (!lineNode.childNodes.length) {
+            lineNode.textContent = lineText;
+          }
+        }
+
+        function annotateCodeLineHighlights(slide) {
+          Array.from(slide.querySelectorAll("pre")).forEach((pre) => {
+            const spec = extractCodeHighlightSpec(pre);
+            if (!spec) return;
+            pre.setAttribute("data-highlight-lines", spec);
+          });
+        }
+
+        function applyCodeLineHighlights(slide) {
+          Array.from(slide.querySelectorAll("pre[data-highlight-lines]")).forEach((pre) => {
+            const code = pre.querySelector("code");
+            if (!code || code.classList.contains("code-lines-processed")) return;
+            const parsedHighlightSpec = parseCodeHighlightSpec(pre.getAttribute("data-highlight-lines") || "");
+            if (!parsedHighlightSpec.highlightedLines.size && !parsedHighlightSpec.inlineSpansByLine.size) return;
+            const normalized = (code.textContent || "").replace(/\r\n?/g, "\n");
+            let lines = normalized.split("\n");
+            if (lines.length > 1 && lines[lines.length - 1] === "") {
+              lines = lines.slice(0, -1);
+            }
+            if (!lines.length) return;
+            const fragment = document.createDocumentFragment();
+            lines.forEach((lineText, lineIndex) => {
+              const line = document.createElement("span");
+              line.className = "code-line";
+              const lineNumber = lineIndex + 1;
+              if (parsedHighlightSpec.highlightedLines.has(lineNumber)) {
+                line.classList.add("is-highlight", "fragment-highlight", "fragment-highlight-pending");
+              }
+              const inlineRanges = normalizeInlineHighlightRanges(
+                parsedHighlightSpec.inlineSpansByLine.get(lineNumber) || [],
+                lineText.length
+              );
+              if (inlineRanges.length) {
+                line.classList.add("has-inline-highlight");
+                appendInlineHighlights(line, lineText, inlineRanges);
+              } else {
+                line.textContent = lineText.length ? lineText : " ";
+              }
+              fragment.appendChild(line);
+            });
+            code.textContent = "";
+            code.classList.add("code-lines-processed");
+            code.appendChild(fragment);
+          });
+        }
+
+        slides.forEach((slide) => {
+          annotateCodeLineHighlights(slide);
+          const appliedCodeLayout = applyTwoColCodeLayout(slide);
+          if (!appliedCodeLayout) {
+            applyTwoColSimpleLayout(slide);
+          }
+          markSpeakerNotes(slide);
+          markDeferredCodeFragments(slide);
+          applyCodeLineHighlights(slide);
+        });
+        const total = slides.length || 1;
+        const slideIds = slides.map((slide, slideIndex) => {
+          if (!slide.id) {
+            slide.id = formatSlideId(slideIndex);
+          }
+          return slide.id;
+        });
+        const slideTitles = slides.map((slide, slideIndex) => {
+          const heading = slide.querySelector("h1, h2, h3");
+          const headingText = heading ? (heading.textContent || "").replace(/\s+/g, " ").trim() : "";
+          if (headingText) return headingText;
+          const fallbackText = (slide.textContent || "").replace(/\s+/g, " ").trim();
+          if (!fallbackText) return `Slide ${slideIndex + 1}`;
+          return fallbackText.length > 88 ? `${fallbackText.slice(0, 88)}…` : fallbackText;
+        });
+        const counter = document.getElementById("deckCounter");
+        const prevBtn = document.getElementById("prevBtn");
+        const nextBtn = document.getElementById("nextBtn");
+        const settingsToggle = document.getElementById("deckSettingsToggle");
+        const settingsPanel = document.getElementById("deckSettingsPanel");
+        const revealToggle = document.getElementById("revealBulletsToggle");
+        const countdownInput = document.getElementById("countdownInput");
+        const countdownWarnInput = document.getElementById("countdownWarnInput");
+        const countdownDangerInput = document.getElementById("countdownDangerInput");
+        const countdownStartBtn = document.getElementById("countdownStartBtn");
+        const countdownStopBtn = document.getElementById("countdownStopBtn");
+        const countdownClearBtn = document.getElementById("countdownClearBtn");
+        const openPresenterBtn = document.getElementById("openPresenterBtn");
+        const openSlideNavBtn = document.getElementById("openSlideNavBtn");
+        const openThemeSettingsBtn = document.getElementById("openThemeSettingsBtn");
+        const slideNavModal = document.getElementById("slideNavModal");
+        const slideNavList = document.getElementById("slideNavList");
+        const slideNavCloseBtn = document.getElementById("slideNavCloseBtn");
+        const themeSettingsModal = document.getElementById("themeSettingsModal");
+        const themeSettingsCloseBtn = document.getElementById("themeSettingsCloseBtn");
+        const themeSettingsDoneBtn = document.getElementById("themeSettingsDoneBtn");
+        const themeSettingsResetBtn = document.getElementById("themeSettingsResetBtn");
+        const themeDeckBackgroundInput = document.getElementById("themeDeckBackgroundInput");
+        const themeDeckGlowLeftInput = document.getElementById("themeDeckGlowLeftInput");
+        const themeDeckGlowRightInput = document.getElementById("themeDeckGlowRightInput");
+        const themePresenterBackgroundInput = document.getElementById("themePresenterBackgroundInput");
+        const themePresenterPanelInput = document.getElementById("themePresenterPanelInput");
+        const themePresenterPendingOpacityInput = document.getElementById("themePresenterPendingOpacityInput");
+        const themePresenterPendingOpacityValue = document.getElementById("themePresenterPendingOpacityValue");
+        const presenterShell = document.getElementById("presenterShell");
+        const presenterCounter = document.getElementById("presenterCounter");
+        const presenterCurrent = document.getElementById("presenterCurrent");
+        const presenterNext = document.getElementById("presenterNext");
+        const presenterNextHeading = document.getElementById("presenterNextHeading");
+        const presenterNotes = document.getElementById("presenterNotes");
+        const presenterScaleRange = document.getElementById("presenterScaleRange");
+        const presenterScaleValue = document.getElementById("presenterScaleValue");
+        const presenterCountdown = document.getElementById("presenterCountdown");
+        const presenterResetLayoutBtn = document.getElementById("presenterResetLayoutBtn");
+        const presenterPanelCloseButtons = Array.from(document.querySelectorAll("[data-close-panel]"));
+
+        function parseSlideIndexFromHash(hashValue) {
+          const cleaned = (hashValue || "").trim().replace(/^#/, "");
+          if (!cleaned) return null;
+          const exactMatchIndex = slideIds.findIndex((slideId) => slideId.toLowerCase() === cleaned.toLowerCase());
+          if (exactMatchIndex >= 0) return exactMatchIndex;
+          const numericMatch = cleaned.match(/^slide(\d+)$/i);
+          if (!numericMatch) return null;
+          const parsed = Number(numericMatch[1]) - 1;
+          if (Number.isNaN(parsed) || parsed < 0 || parsed >= total) return null;
+          return parsed;
+        }
+
+        function syncHashToCurrentSlide() {
+          const currentSlideId = slideIds[idx];
+          if (!currentSlideId) return;
+          const nextHash = `#${currentSlideId}`;
+          if (window.location.hash === nextHash) return;
+          if (window.history && typeof window.history.replaceState === "function") {
+            window.history.replaceState(null, "", nextHash);
+            return;
+          }
+          window.location.hash = nextHash;
+        }
+
+        function clamp(value, min, max) {
+          return Math.max(min, Math.min(max, value));
+        }
+        function normalizeHexColor(value, fallback) {
+          const raw = String(value || "").trim();
+          const fullHexMatch = raw.match(/^#([0-9a-fA-F]{6})$/);
+          if (fullHexMatch) {
+            return `#${fullHexMatch[1].toLowerCase()}`;
+          }
+          const shortHexMatch = raw.match(/^#([0-9a-fA-F]{3})$/);
+          if (shortHexMatch) {
+            const expanded = shortHexMatch[1].split("").map((ch) => `${ch}${ch}`).join("");
+            return `#${expanded.toLowerCase()}`;
+          }
+          return fallback;
+        }
+        function normalizePendingOpacityPercent(value, fallback = THEME_PENDING_OPACITY_DEFAULT) {
+          const fallbackNumber = Number(fallback);
+          const safeFallback = Number.isNaN(fallbackNumber)
+            ? THEME_PENDING_OPACITY_DEFAULT
+            : clamp(fallbackNumber, THEME_PENDING_OPACITY_MIN, THEME_PENDING_OPACITY_MAX);
+          const parsed = Number(value);
+          if (Number.isNaN(parsed)) return safeFallback;
+          const rounded = Math.round(parsed / THEME_PENDING_OPACITY_STEP) * THEME_PENDING_OPACITY_STEP;
+          return clamp(rounded, THEME_PENDING_OPACITY_MIN, THEME_PENDING_OPACITY_MAX);
+        }
+        function normalizeThemeColors(value) {
+          const source = (value && typeof value === "object") ? value : {};
+          return {
+            deckBackground: normalizeHexColor(source.deckBackground, THEME_COLOR_DEFAULTS.deckBackground),
+            deckGlowLeft: normalizeHexColor(source.deckGlowLeft, THEME_COLOR_DEFAULTS.deckGlowLeft),
+            deckGlowRight: normalizeHexColor(source.deckGlowRight, THEME_COLOR_DEFAULTS.deckGlowRight),
+            presenterBackground: normalizeHexColor(source.presenterBackground, THEME_COLOR_DEFAULTS.presenterBackground),
+            presenterPanelBackground: normalizeHexColor(source.presenterPanelBackground, THEME_COLOR_DEFAULTS.presenterPanelBackground),
+            presenterPendingOpacityPercent: normalizePendingOpacityPercent(
+              source.presenterPendingOpacityPercent,
+              THEME_COLOR_DEFAULTS.presenterPendingOpacityPercent
+            )
+          };
+        }
+        function isThemeAtDefaults(themeColors) {
+          const normalized = normalizeThemeColors(themeColors);
+          return Object.keys(THEME_COLOR_DEFAULTS).every((key) => normalized[key] === THEME_COLOR_DEFAULTS[key]);
+        }
+        function normalizePresenterScale(value) {
+          const parsed = Number(value);
+          if (Number.isNaN(parsed)) return PRESENTER_SCALE_DEFAULT;
+          const rounded = Math.round(parsed / PRESENTER_SCALE_STEP) * PRESENTER_SCALE_STEP;
+          return clamp(rounded, PRESENTER_SCALE_MIN, PRESENTER_SCALE_MAX);
+        }
+        function normalizeCountdownSeconds(value) {
+          const parsed = Number(value);
+          if (Number.isNaN(parsed) || parsed < 0) return 0;
+          return Math.floor(parsed);
+        }
+        function formatCountdown(seconds) {
+          const safeSeconds = normalizeCountdownSeconds(seconds);
+          const minutes = Math.floor(safeSeconds / 60);
+          const remainderSeconds = safeSeconds % 60;
+          return `${String(minutes).padStart(2, "0")}:${String(remainderSeconds).padStart(2, "0")}`;
+        }
+        function parseCountdownDuration(value) {
+          const trimmed = String(value || "").trim();
+          if (!trimmed) return null;
+          const colonMatch = trimmed.match(/^(\d+)\s*:\s*([0-5]?\d)$/);
+          if (!colonMatch) return null;
+          const minutes = Number(colonMatch[1]);
+          const seconds = Number(colonMatch[2]);
+          if (Number.isNaN(minutes) || Number.isNaN(seconds)) return null;
+          return (minutes * 60) + seconds;
+        }
+        function normalizeCountdownThresholdSeconds(value, fallback) {
+          const parsed = normalizeCountdownSeconds(value);
+          return parsed > 0 ? parsed : fallback;
+        }
+        function normalizeCountdownThresholdPair(warningValue, dangerValue) {
+          const warningSeconds = normalizeCountdownThresholdSeconds(warningValue, COUNTDOWN_WARNING_DEFAULT_SECONDS);
+          const normalizedDanger = normalizeCountdownThresholdSeconds(dangerValue, COUNTDOWN_DANGER_DEFAULT_SECONDS);
+          const dangerSeconds = Math.min(normalizedDanger, warningSeconds);
+          return { warningSeconds, dangerSeconds };
+        }
+        function isTypingContext(event) {
+          const target = event.target;
+          if (!target) return false;
+          const tagName = (target.tagName || "").toUpperCase();
+          return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(tagName);
+        }
+
+        function loadSettings() {
+          try {
+            const saved = JSON.parse(localStorage.getItem(STORAGE_SETTINGS_KEY) || "{}");
+            const thresholdPair = normalizeCountdownThresholdPair(saved.countdownWarningSeconds, saved.countdownDangerSeconds);
+            const savedEndsAt = Number(saved.countdownEndsAt);
+            const hasSavedEndsAt = Number.isFinite(savedEndsAt) && savedEndsAt > 0;
+            const isRunning = !!saved.countdownRunning && hasSavedEndsAt && savedEndsAt > Date.now();
+            const savedRemaining = isRunning
+              ? Math.max(0, Math.ceil((savedEndsAt - Date.now()) / 1000))
+              : normalizeCountdownSeconds(saved.countdownRemainingSeconds);
+            const shouldShowCountdown = (saved.countdownVisible === true) || isRunning || savedRemaining > 0;
+            return {
+              revealBullets: !!saved.revealBullets,
+              presenterScale: normalizePresenterScale(saved.presenterScale),
+              presenterCurrentPane: saved.presenterCurrentPane !== false,
+              presenterNextPane: saved.presenterNextPane !== false,
+              presenterNotesPane: saved.presenterNotesPane !== false,
+              countdownVisible: shouldShowCountdown,
+              countdownRunning: isRunning,
+              countdownRemainingSeconds: savedRemaining,
+              countdownEndsAt: isRunning ? savedEndsAt : 0,
+              countdownWarningSeconds: thresholdPair.warningSeconds,
+              countdownDangerSeconds: thresholdPair.dangerSeconds,
+              themeColors: normalizeThemeColors(saved.themeColors)
+            };
+          } catch (e) {
+            return {
+              revealBullets: false,
+              presenterScale: PRESENTER_SCALE_DEFAULT,
+              presenterCurrentPane: true,
+              presenterNextPane: true,
+              presenterNotesPane: true,
+              countdownVisible: false,
+              countdownRunning: false,
+              countdownRemainingSeconds: 0,
+              countdownEndsAt: 0,
+              countdownWarningSeconds: COUNTDOWN_WARNING_DEFAULT_SECONDS,
+              countdownDangerSeconds: COUNTDOWN_DANGER_DEFAULT_SECONDS,
+              themeColors: normalizeThemeColors(null)
+            };
+          }
+        }
+
+        function saveSettings() {
+          try {
+            const persistedCountdownRemaining = syncCountdownClock();
+            localStorage.setItem(
+              STORAGE_SETTINGS_KEY,
+              JSON.stringify({
+                revealBullets: revealBulletsEnabled,
+                presenterScale,
+                presenterCurrentPane,
+                presenterNextPane,
+                presenterNotesPane,
+                countdownVisible,
+                countdownRunning,
+                countdownRemainingSeconds: persistedCountdownRemaining,
+                countdownEndsAt: countdownRunning ? countdownEndsAt : 0,
+                countdownWarningSeconds,
+                countdownDangerSeconds,
+                themeColors
+              })
+            );
+          } catch (e) {
+            // Ignore storage failures.
+          }
+        }
+
+        const fragmentTargetsBySlide = slides.map((slide) => {
+          return Array.from(slide.querySelectorAll("li, .fragment, .fragment-highlight")).filter((el) => !el.closest(".speaker-note"));
+        });
+
+        function normalizeRevealedCounts(input) {
+          return fragmentTargetsBySlide.map((targets, slideIndex) => {
+            const parsed = Array.isArray(input) ? Number(input[slideIndex] || 0) : 0;
+            const safeValue = Number.isNaN(parsed) ? 0 : parsed;
+            return clamp(safeValue, 0, targets.length);
+          });
+        }
+
+        const loadedSettings = loadSettings();
+        let revealBulletsEnabled = loadedSettings.revealBullets;
+        let presenterScale = normalizePresenterScale(loadedSettings.presenterScale);
+        let presenterCurrentPane = loadedSettings.presenterCurrentPane;
+        let presenterNextPane = loadedSettings.presenterNextPane;
+        let presenterNotesPane = loadedSettings.presenterNotesPane;
+        let revealedCounts = revealBulletsEnabled
+          ? normalizeRevealedCounts([])
+          : fragmentTargetsBySlide.map((targets) => targets.length);
+        let idx = 0;
+        const hashSlideIndex = parseSlideIndexFromHash(window.location.hash);
+        if (hashSlideIndex !== null) {
+          idx = hashSlideIndex;
+        }
+        let slideNavSelectionIdx = idx;
+        let countdownVisible = loadedSettings.countdownVisible;
+        let countdownRunning = loadedSettings.countdownRunning;
+        let countdownRemainingSeconds = loadedSettings.countdownRemainingSeconds;
+        let countdownEndsAt = loadedSettings.countdownEndsAt;
+        let countdownWarningSeconds = loadedSettings.countdownWarningSeconds;
+        let countdownDangerSeconds = loadedSettings.countdownDangerSeconds;
+        let themeColors = normalizeThemeColors(loadedSettings.themeColors);
+        let countdownIntervalId = null;
+        function syncThemeInputs() {
+          if (themeDeckBackgroundInput) {
+            themeDeckBackgroundInput.value = themeColors.deckBackground;
+          }
+          if (themeDeckGlowLeftInput) {
+            themeDeckGlowLeftInput.value = themeColors.deckGlowLeft;
+          }
+          if (themeDeckGlowRightInput) {
+            themeDeckGlowRightInput.value = themeColors.deckGlowRight;
+          }
+          if (themePresenterBackgroundInput) {
+            themePresenterBackgroundInput.value = themeColors.presenterBackground;
+          }
+          if (themePresenterPanelInput) {
+            themePresenterPanelInput.value = themeColors.presenterPanelBackground;
+          }
+          if (themePresenterPendingOpacityInput) {
+            themePresenterPendingOpacityInput.value = String(themeColors.presenterPendingOpacityPercent);
+          }
+          if (themePresenterPendingOpacityValue) {
+            themePresenterPendingOpacityValue.textContent = `${themeColors.presenterPendingOpacityPercent}%`;
+          }
+          if (themeSettingsResetBtn) {
+            themeSettingsResetBtn.disabled = isThemeAtDefaults(themeColors);
+          }
+        }
+        function applyThemeColors(nextThemeColors, options = {}) {
+          const skipSave = options.skipSave === true;
+          const skipBroadcast = options.skipBroadcast === true;
+          const syncInputs = options.syncInputs !== false;
+          themeColors = normalizeThemeColors(nextThemeColors);
+          Object.keys(THEME_COLOR_CSS_VARIABLES).forEach((key) => {
+            const cssVarName = THEME_COLOR_CSS_VARIABLES[key];
+            document.documentElement.style.setProperty(cssVarName, themeColors[key]);
+          });
+          document.documentElement.style.setProperty(
+            "--presenter-pending-opacity",
+            String(themeColors.presenterPendingOpacityPercent / 100)
+          );
+          if (syncInputs) {
+            syncThemeInputs();
+          }
+          if (!skipSave) {
+            saveSettings();
+          }
+          if (!skipBroadcast) {
+            broadcast("state");
+          }
+        }
+        function readThemeColorsFromInputs() {
+          return {
+            deckBackground: themeDeckBackgroundInput ? themeDeckBackgroundInput.value : themeColors.deckBackground,
+            deckGlowLeft: themeDeckGlowLeftInput ? themeDeckGlowLeftInput.value : themeColors.deckGlowLeft,
+            deckGlowRight: themeDeckGlowRightInput ? themeDeckGlowRightInput.value : themeColors.deckGlowRight,
+            presenterBackground: themePresenterBackgroundInput ? themePresenterBackgroundInput.value : themeColors.presenterBackground,
+            presenterPanelBackground: themePresenterPanelInput ? themePresenterPanelInput.value : themeColors.presenterPanelBackground,
+            presenterPendingOpacityPercent: normalizePendingOpacityPercent(
+              themePresenterPendingOpacityInput ? themePresenterPendingOpacityInput.value : themeColors.presenterPendingOpacityPercent,
+              themeColors.presenterPendingOpacityPercent
+            )
+          };
+        }
+        function applyThemeColorsFromInputs() {
+          applyThemeColors(readThemeColorsFromInputs(), { syncInputs: true });
+        }
+        function resetThemeColors() {
+          applyThemeColors(THEME_COLOR_DEFAULTS);
+        }
+        function openThemeSettingsModal() {
+          if (!themeSettingsModal) return;
+          hideSettingsPanel();
+          syncThemeInputs();
+          themeSettingsModal.hidden = false;
+          themeSettingsModal.setAttribute("aria-hidden", "false");
+        }
+        function closeThemeSettingsModal() {
+          if (!themeSettingsModal) return;
+          themeSettingsModal.hidden = true;
+          themeSettingsModal.setAttribute("aria-hidden", "true");
+        }
+        function syncCountdownClock(now = Date.now()) {
+          if (countdownRunning && countdownEndsAt > 0) {
+            countdownRemainingSeconds = Math.max(0, Math.ceil((countdownEndsAt - now) / 1000));
+            if (countdownRemainingSeconds <= 0) {
+              countdownRunning = false;
+              countdownEndsAt = 0;
+            }
+          } else {
+            countdownRemainingSeconds = normalizeCountdownSeconds(countdownRemainingSeconds);
+          }
+          return countdownRemainingSeconds;
+        }
+        function stopCountdownTicker() {
+          if (!countdownIntervalId) return;
+          window.clearInterval(countdownIntervalId);
+          countdownIntervalId = null;
+        }
+        function ensureCountdownTicker() {
+          if (!countdownRunning) {
+            stopCountdownTicker();
+            return;
+          }
+          if (countdownIntervalId) return;
+          countdownIntervalId = window.setInterval(() => {
+            const wasRunning = countdownRunning;
+            const previousRemaining = countdownRemainingSeconds;
+            const remaining = syncCountdownClock();
+            renderCountdownUi({ syncThresholdInputs: false });
+            if (wasRunning && !countdownRunning && previousRemaining > 0 && remaining === 0) {
+              saveSettings();
+              broadcast("state");
+            }
+            if (!countdownRunning) {
+              stopCountdownTicker();
+            }
+          }, 250);
+        }
+        function renderCountdownUi(options = {}) {
+          const syncInput = options.syncInput !== false;
+          const syncThresholdInputs = options.syncThresholdInputs !== false;
+          const remaining = syncCountdownClock();
+          const shouldShow = countdownVisible || countdownRunning || remaining > 0;
+          const countdownTone = (shouldShow && remaining <= countdownDangerSeconds)
+            ? "danger"
+            : ((shouldShow && remaining <= countdownWarningSeconds) ? "warning" : "normal");
+          if (presenterCountdown) {
+            presenterCountdown.hidden = !shouldShow;
+            presenterCountdown.classList.toggle("is-warning", countdownTone === "warning");
+            presenterCountdown.classList.toggle("is-danger", countdownTone === "danger");
+            presenterCountdown.classList.toggle("is-complete", shouldShow && !countdownRunning && remaining === 0);
+            if (shouldShow) {
+              presenterCountdown.textContent = formatCountdown(remaining);
+            }
+          }
+          if (countdownInput && syncInput) {
+            if (countdownRunning || document.activeElement !== countdownInput) {
+              if (shouldShow) {
+                countdownInput.value = formatCountdown(remaining);
+              } else if (!countdownInput.value.trim()) {
+                countdownInput.value = formatCountdown(COUNTDOWN_DEFAULT_SECONDS);
+              }
+            }
+          }
+          if (countdownInput) {
+            countdownInput.classList.toggle("timer-running", countdownRunning);
+            countdownInput.classList.toggle("timer-warning", countdownRunning && countdownTone === "warning");
+            countdownInput.classList.toggle("timer-danger", countdownRunning && countdownTone === "danger");
+          }
+          if (countdownWarnInput && syncThresholdInputs && document.activeElement !== countdownWarnInput) {
+            countdownWarnInput.value = formatCountdown(countdownWarningSeconds);
+          }
+          if (countdownDangerInput && syncThresholdInputs && document.activeElement !== countdownDangerInput) {
+            countdownDangerInput.value = formatCountdown(countdownDangerSeconds);
+          }
+          if (countdownStopBtn) {
+            countdownStopBtn.disabled = !countdownRunning;
+          }
+          if (countdownClearBtn) {
+            countdownClearBtn.disabled = !shouldShow;
+          }
+          document.body.classList.toggle("presenter-timer-warning", isPresenterMode && shouldShow && countdownTone === "warning");
+          document.body.classList.toggle("presenter-timer-danger", isPresenterMode && shouldShow && countdownTone === "danger");
+        }
+        function applyCountdownState(nextState) {
+          const thresholdPair = normalizeCountdownThresholdPair(
+            nextState && nextState.countdownWarningSeconds,
+            nextState && nextState.countdownDangerSeconds
+          );
+          countdownWarningSeconds = thresholdPair.warningSeconds;
+          countdownDangerSeconds = thresholdPair.dangerSeconds;
+          const incomingRemaining = normalizeCountdownSeconds(nextState && nextState.countdownRemainingSeconds);
+          const incomingRunning = !!(nextState && nextState.countdownRunning);
+          const incomingEndsAtRaw = Number(nextState && nextState.countdownEndsAt);
+          const incomingEndsAt = Number.isFinite(incomingEndsAtRaw) ? incomingEndsAtRaw : 0;
+          const inferredVisible = incomingRunning || incomingRemaining > 0;
+          countdownVisible = (nextState && typeof nextState.countdownVisible === "boolean")
+            ? nextState.countdownVisible
+            : inferredVisible;
+          countdownRunning = incomingRunning && incomingEndsAt > Date.now();
+          countdownEndsAt = countdownRunning ? incomingEndsAt : 0;
+          countdownRemainingSeconds = countdownRunning
+            ? Math.max(0, Math.ceil((countdownEndsAt - Date.now()) / 1000))
+            : incomingRemaining;
+          ensureCountdownTicker();
+          renderCountdownUi();
+        }
+        function applyCountdownThresholdsFromInputs() {
+          const parsedWarning = parseCountdownDuration(countdownWarnInput ? countdownWarnInput.value : "");
+          if (!parsedWarning || parsedWarning <= 0) {
+            if (countdownWarnInput) {
+              countdownWarnInput.setCustomValidity("Use mm:ss (for example 05:00).");
+              countdownWarnInput.reportValidity();
+            }
+            return;
+          }
+          const parsedDanger = parseCountdownDuration(countdownDangerInput ? countdownDangerInput.value : "");
+          if (!parsedDanger || parsedDanger <= 0) {
+            if (countdownDangerInput) {
+              countdownDangerInput.setCustomValidity("Use mm:ss (for example 01:00).");
+              countdownDangerInput.reportValidity();
+            }
+            return;
+          }
+          if (countdownWarnInput) {
+            countdownWarnInput.setCustomValidity("");
+          }
+          if (countdownDangerInput) {
+            countdownDangerInput.setCustomValidity("");
+          }
+          const normalized = normalizeCountdownThresholdPair(parsedWarning, parsedDanger);
+          countdownWarningSeconds = normalized.warningSeconds;
+          countdownDangerSeconds = normalized.dangerSeconds;
+          if (countdownWarnInput) {
+            countdownWarnInput.value = formatCountdown(countdownWarningSeconds);
+          }
+          if (countdownDangerInput) {
+            countdownDangerInput.value = formatCountdown(countdownDangerSeconds);
+          }
+          renderCountdownUi({ syncInput: false, syncThresholdInputs: false });
+          saveSettings();
+          broadcast("state");
+        }
+        function startCountdownFromInput() {
+          const parsed = parseCountdownDuration(countdownInput ? countdownInput.value : "");
+          if (!parsed || parsed <= 0) {
+            if (countdownInput) {
+              countdownInput.setCustomValidity("Use mm:ss (for example 15:00).");
+              countdownInput.reportValidity();
+            }
+            return;
+          }
+          if (countdownInput) {
+            countdownInput.setCustomValidity("");
+            countdownInput.value = formatCountdown(parsed);
+          }
+          countdownVisible = true;
+          countdownRunning = true;
+          countdownRemainingSeconds = parsed;
+          countdownEndsAt = Date.now() + (parsed * 1000);
+          ensureCountdownTicker();
+          renderCountdownUi({ syncInput: true });
+          saveSettings();
+          broadcast("state");
+        }
+        function stopCountdown() {
+          if (!countdownRunning) return;
+          syncCountdownClock();
+          countdownRunning = false;
+          countdownEndsAt = 0;
+          ensureCountdownTicker();
+          renderCountdownUi();
+          saveSettings();
+          broadcast("state");
+        }
+        function clearCountdown() {
+          countdownVisible = false;
+          countdownRunning = false;
+          countdownRemainingSeconds = 0;
+          countdownEndsAt = 0;
+          ensureCountdownTicker();
+          if (countdownInput && document.activeElement !== countdownInput) {
+            countdownInput.value = formatCountdown(COUNTDOWN_DEFAULT_SECONDS);
+          }
+          renderCountdownUi();
+          saveSettings();
+          broadcast("state");
+        }
+        function setFragmentTargetVisibility(target, isVisible, options = {}) {
+          const showPending = options.showPending === true;
+          const isPending = !isVisible;
+          target.classList.toggle("fragment-preview-pending", showPending && isPending);
+          if (target.classList.contains("fragment-highlight")) {
+            target.classList.toggle("fragment-highlight-pending", isPending && !showPending);
+            target.classList.remove("fragment-hidden");
+            return;
+          }
+          target.classList.toggle("fragment-hidden", isPending && !showPending);
+        }
+
+        function applyFragmentVisibility() {
+          for (let slideIndex = 0; slideIndex < slides.length; slideIndex += 1) {
+            const targets = fragmentTargetsBySlide[slideIndex];
+            const visibleCount = revealBulletsEnabled ? revealedCounts[slideIndex] : targets.length;
+            targets.forEach((el, itemIndex) => {
+              setFragmentTargetVisibility(el, itemIndex < visibleCount);
+            });
+          }
+        }
+
+        function setSlideNavigatorSelection(nextIndex, options = {}) {
+          const focus = options.focus === true;
+          const parsed = Number(nextIndex);
+          const fallback = Number.isNaN(parsed) ? idx : parsed;
+          slideNavSelectionIdx = clamp(fallback, 0, total - 1);
+          updateSlideNavigatorActive();
+          if (focus && slideNavList) {
+            const selectedItem = slideNavList.querySelector(`.slide-nav-item[data-slide-index="${slideNavSelectionIdx}"]`);
+            if (selectedItem) {
+              selectedItem.focus();
+            }
+          }
+        }
+
+        function updateSlideNavigatorActive() {
+          if (!slideNavList) return;
+          const items = Array.from(slideNavList.querySelectorAll(".slide-nav-item"));
+          items.forEach((item) => {
+            const itemSlideIndex = Number(item.getAttribute("data-slide-index"));
+            const isActive = itemSlideIndex === idx;
+            item.classList.toggle("is-active", isActive);
+            if (isActive) {
+              item.setAttribute("aria-current", "true");
+            } else {
+              item.removeAttribute("aria-current");
+            }
+          });
+        }
+
+        function buildSlideNavigatorList() {
+          if (!slideNavList) return;
+          slideNavList.innerHTML = "";
+          for (let slideIndex = 0; slideIndex < total; slideIndex += 1) {
+            const listItem = document.createElement("li");
+            const itemButton = document.createElement("button");
+            itemButton.type = "button";
+            itemButton.className = "slide-nav-item";
+            itemButton.setAttribute("data-slide-index", String(slideIndex));
+
+            const num = document.createElement("span");
+            num.className = "slide-nav-item-num";
+            num.textContent = `#${String(slideIndex + 1).padStart(slideIdWidth, "0")}`;
+            const title = document.createElement("span");
+            title.className = "slide-nav-item-title";
+            title.textContent = slideTitles[slideIndex];
+
+            itemButton.appendChild(num);
+            itemButton.appendChild(title);
+            itemButton.addEventListener("click", () => {
+              jumpToSlide(slideIndex);
+              closeSlideNavigator();
+            });
+
+            listItem.appendChild(itemButton);
+            slideNavList.appendChild(listItem);
+          }
+
+          setSlideNavigatorSelection(idx, { focus: false });
+        }
+
+        function openSlideNavigator() {
+          if (!slideNavModal || !slideNavList) return;
+          hideSettingsPanel();
+          slideNavModal.hidden = false;
+          slideNavModal.setAttribute("aria-hidden", "false");
+          setSlideNavigatorSelection(idx, { focus: true });
+        }
+
+        function closeSlideNavigator() {
+          if (!slideNavModal) return;
+          slideNavModal.hidden = true;
+          slideNavModal.setAttribute("aria-hidden", "true");
+        }
+
+        function toggleSlideNavigator() {
+          if (!slideNavModal) return;
+          if (slideNavModal.hidden) {
+            openSlideNavigator();
+            return;
+          }
+          closeSlideNavigator();
+        }
+
+        function jumpToSlide(targetIndex) {
+          const parsed = Number(targetIndex);
+          if (Number.isNaN(parsed)) return;
+          idx = clamp(parsed, 0, total - 1);
+          render();
+        }
+
+        function jumpToSelectedSlide() {
+          jumpToSlide(slideNavSelectionIdx);
+          closeSlideNavigator();
+        }
+
+        function messagePayload(type) {
+          return {
+            type,
+            sender: sessionId,
+            state: {
+              idx,
+              revealBulletsEnabled,
+              revealedCounts: normalizeRevealedCounts(revealedCounts),
+              countdownVisible,
+              countdownRunning,
+              countdownRemainingSeconds: syncCountdownClock(),
+              countdownEndsAt: countdownRunning ? countdownEndsAt : 0,
+              countdownWarningSeconds,
+              countdownDangerSeconds,
+              themeColors
+            }
+          };
+        }
+
+        function broadcast(type) {
+          const payload = messagePayload(type);
+          if (channel) {
+            try {
+              channel.postMessage(payload);
+            } catch (e) {
+              // Ignore channel failures.
+            }
+          }
+          try {
+            localStorage.setItem(STORAGE_STATE_KEY, JSON.stringify(payload));
+          } catch (e) {
+            // Ignore storage failures.
+          }
+        }
+
+        function applyIncomingState(nextState) {
+          if (!nextState || typeof nextState !== "object") return;
+          idx = clamp(Number(nextState.idx || 0), 0, total - 1);
+          revealBulletsEnabled = !!nextState.revealBulletsEnabled;
+          revealedCounts = revealBulletsEnabled
+            ? normalizeRevealedCounts(nextState.revealedCounts)
+            : fragmentTargetsBySlide.map((targets) => targets.length);
+          if (Object.prototype.hasOwnProperty.call(nextState, "themeColors")) {
+            applyThemeColors(nextState.themeColors, { skipSave: true, skipBroadcast: true, syncInputs: true });
+          }
+          applyCountdownState(nextState);
+          if (revealToggle) {
+            revealToggle.checked = revealBulletsEnabled;
+          }
+          saveSettings();
+          render({ broadcastState: false });
+        }
+
+        function handleIncomingMessage(message) {
+          if (!message || message.sender === sessionId) return;
+          if (message.type === "request-state") {
+            broadcast("state");
+            return;
+          }
+          if (message.type === "state" && message.state) {
+            applyIncomingState(message.state);
+          }
+        }
+
+        if (channel) {
+          channel.onmessage = (event) => {
+            handleIncomingMessage(event.data);
+          };
+        }
+
+        window.addEventListener("storage", (event) => {
+          if (event.key !== STORAGE_STATE_KEY || !event.newValue) return;
+          try {
+            handleIncomingMessage(JSON.parse(event.newValue));
+          } catch (e) {
+            // Ignore parse failures.
+          }
+        });
+
+        window.addEventListener("hashchange", () => {
+          const nextHashIndex = parseSlideIndexFromHash(window.location.hash);
+          if (nextHashIndex === null || nextHashIndex === idx) return;
+          jumpToSlide(nextHashIndex);
+        });
+
+        function getSpeakerNotesForSlide(slideIndex) {
+          const slide = slides[slideIndex];
+          if (!slide) return [];
+          return Array.from(slide.querySelectorAll(".speaker-note")).map((quote) => {
+            const text = (quote.textContent || "").trim();
+            const stripped = text.replace(NOTE_PREFIX_RE, "").trim();
+            return stripped || text;
+          });
+        }
+
+        function renderSpeakerNotesList(container, notes, emptyText = "No speaker notes for this slide.") {
+          if (!container) return;
+          container.innerHTML = "";
+          if (!notes.length) {
+            const empty = document.createElement("p");
+            empty.className = "presenter-notes-empty";
+            empty.textContent = emptyText;
+            container.appendChild(empty);
+            return;
+          }
+          const list = document.createElement("ul");
+          notes.forEach((noteText) => {
+            const item = document.createElement("li");
+            item.textContent = noteText;
+            list.appendChild(item);
+          });
+          container.appendChild(list);
+        }
+
+        function buildPreviewSlideHtml(slideIndex, revealCount, options = {}) {
+          const slide = slides[slideIndex];
+          if (!slide) return '<div class="presenter-empty">No slide</div>';
+          const clone = slide.cloneNode(true);
+          clone.className = "presenter-slide-content";
+          clone.removeAttribute("id");
+          clone.removeAttribute("data-slide");
+          clone.querySelectorAll(".speaker-note").forEach((note) => note.remove());
+          const targets = Array.from(clone.querySelectorAll("li, .fragment, .fragment-highlight")).filter((el) => !el.closest(".speaker-note"));
+          const forceAllBullets = options.forceAllBullets === true;
+          const showPendingAsDimmed = options.showPendingAsDimmed === true && revealBulletsEnabled;
+          const revealProgressCount = revealBulletsEnabled ? clamp(revealCount, 0, targets.length) : targets.length;
+          const visibleCount = (forceAllBullets && !showPendingAsDimmed)
+            ? targets.length
+            : revealProgressCount;
+          targets.forEach((el, itemIndex) => {
+            setFragmentTargetVisibility(el, itemIndex < visibleCount, { showPending: showPendingAsDimmed });
+          });
+          return clone.outerHTML;
+        }
+
+        function renderPresenter() {
+          if (!isPresenterMode || !presenterShell) return;
+          const notes = getSpeakerNotesForSlide(idx);
+          const showCurrentPane = presenterCurrentPane;
+          const showNextPane = presenterNextPane;
+          const showNotesPane = presenterNotesPane;
+          if (presenterCounter) {
+            presenterCounter.textContent = `Slide ${idx + 1} / ${total}`;
+          }
+          if (presenterNextHeading) {
+            presenterNextHeading.textContent = "Next slide";
+          }
+          if (presenterCurrent) {
+            presenterCurrent.innerHTML = showCurrentPane
+              ? buildPreviewSlideHtml(idx, revealedCounts[idx] || 0, { showPendingAsDimmed: true })
+              : "";
+          }
+          if (presenterNext) {
+            if (!showNextPane) {
+              presenterNext.innerHTML = "";
+            } else if (idx < total - 1) {
+              presenterNext.innerHTML = buildPreviewSlideHtml(idx + 1, 0, { forceAllBullets: true });
+            } else {
+              presenterNext.innerHTML = '<div class="presenter-empty">End of deck</div>';
+            }
+          }
+          if (presenterNotes) {
+            if (!showNotesPane) {
+              presenterNotes.innerHTML = "";
+            } else {
+              renderSpeakerNotesList(presenterNotes, notes);
+            }
+          }
+        }
+
+        function render(options = {}) {
+          const broadcastState = options.broadcastState !== false;
+          applyFragmentVisibility();
+          slides.forEach((s, i) => s.classList.toggle("active", i === idx));
+          if (counter) counter.textContent = `Slide ${idx + 1} / ${total}`;
+          updateSlideNavigatorActive();
+          syncHashToCurrentSlide();
+          if (prevBtn) {
+            const canUnreveal = revealBulletsEnabled && (revealedCounts[idx] || 0) > 0;
+            prevBtn.disabled = idx === 0 && !canUnreveal;
+          }
+          if (nextBtn) {
+            const currentTargets = fragmentTargetsBySlide[idx] || [];
+            const canRevealMore = revealBulletsEnabled && (revealedCounts[idx] || 0) < currentTargets.length;
+            nextBtn.disabled = !canRevealMore && idx >= total - 1;
+          }
+          renderPresenter();
+          renderCountdownUi();
+          if (broadcastState) {
+            broadcast("state");
+          }
+        }
+
+        function next() {
+          const currentTargets = fragmentTargetsBySlide[idx] || [];
+          if (revealBulletsEnabled && (revealedCounts[idx] || 0) < currentTargets.length) {
+            revealedCounts[idx] = (revealedCounts[idx] || 0) + 1;
+            render();
+            return;
+          }
+          if (idx < total - 1) {
+            idx += 1;
+            if (typeof revealedCounts[idx] !== "number") {
+              revealedCounts[idx] = 0;
+            }
+            render();
+          }
+        }
+
+        function prev() {
+          if (revealBulletsEnabled && (revealedCounts[idx] || 0) > 0) {
+            revealedCounts[idx] = (revealedCounts[idx] || 0) - 1;
+            render();
+            return;
+          }
+          if (idx > 0) {
+            idx -= 1;
+            if (revealBulletsEnabled) {
+              const previousTargets = fragmentTargetsBySlide[idx] || [];
+              revealedCounts[idx] = previousTargets.length;
+            }
+            render();
+          }
+        }
+
+        function setRevealBulletsEnabled(enabled) {
+          revealBulletsEnabled = !!enabled;
+          revealedCounts = revealBulletsEnabled
+            ? fragmentTargetsBySlide.map(() => 0)
+            : fragmentTargetsBySlide.map((targets) => targets.length);
+          saveSettings();
+          render();
+        }
+
+        function setPresenterPanelVisibility(panelName, enabled, options = {}) {
+          const isVisible = !!enabled;
+          if (panelName === "current") {
+            presenterCurrentPane = isVisible;
+          } else if (panelName === "next") {
+            presenterNextPane = isVisible;
+          } else if (panelName === "notes") {
+            presenterNotesPane = isVisible;
+          } else {
+            return;
+          }
+          document.body.classList.toggle(`presenter-panel-hidden-${panelName}`, !isVisible);
+          if (!options.skipSave) {
+            saveSettings();
+          }
+          if (!options.skipRender) {
+            renderPresenter();
+          }
+        }
+
+        function resetPresenterLayout() {
+          setPresenterPanelVisibility("current", true, { skipSave: true, skipRender: true });
+          setPresenterPanelVisibility("next", true, { skipSave: true, skipRender: true });
+          setPresenterPanelVisibility("notes", true, { skipSave: true, skipRender: true });
+          setPresenterScale(PRESENTER_SCALE_DEFAULT, { skipSave: true, skipRender: true });
+          saveSettings();
+          renderPresenter();
+        }
+
+        function setPresenterScale(value, options = {}) {
+          presenterScale = normalizePresenterScale(value);
+          document.body.style.setProperty("--presenter-preview-scale", String(presenterScale / 100));
+          if (presenterScaleRange) {
+            presenterScaleRange.value = String(presenterScale);
+          }
+          if (presenterScaleValue) {
+            presenterScaleValue.textContent = `${presenterScale}%`;
+          }
+          if (!options.skipSave) {
+            saveSettings();
+          }
+          if (!options.skipRender) {
+            renderPresenter();
+          }
+        }
+
+        function hideSettingsPanel() {
+          if (!settingsPanel || !settingsToggle) return;
+          settingsPanel.setAttribute("hidden", "");
+          settingsToggle.setAttribute("aria-expanded", "false");
+        }
+
+        function toggleSettingsPanel() {
+          if (!settingsPanel || !settingsToggle) return;
+          const shouldOpen = settingsPanel.hasAttribute("hidden");
+          if (!shouldOpen) {
+            hideSettingsPanel();
+            return;
+          }
+          settingsPanel.removeAttribute("hidden");
+          settingsToggle.setAttribute("aria-expanded", "true");
+        }
+
+        function openPresenterWindow() {
+          const presenterUrl = new URL(window.location.href);
+          presenterUrl.searchParams.set("presenter", "1");
+          window.open(
+            presenterUrl.toString(),
+            "markspresso-presenter",
+            "popup=yes,width=1440,height=900,menubar=no,toolbar=no,location=yes,status=no"
+          );
+          broadcast("state");
+        }
+
+        if (settingsToggle && settingsPanel) {
+          settingsToggle.addEventListener("click", (event) => {
+            event.stopPropagation();
+            toggleSettingsPanel();
+          });
+          settingsPanel.addEventListener("click", (event) => event.stopPropagation());
+          document.addEventListener("click", () => hideSettingsPanel());
+        }
+
+        if (revealToggle) {
+          revealToggle.checked = revealBulletsEnabled;
+          revealToggle.addEventListener("change", (event) => {
+            setRevealBulletsEnabled(event.target.checked);
+          });
+        }
+        if (countdownInput) {
+          countdownInput.addEventListener("input", () => {
+            countdownInput.setCustomValidity("");
+          });
+          countdownInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              startCountdownFromInput();
+            }
+          });
+        }
+        if (countdownWarnInput) {
+          countdownWarnInput.addEventListener("input", () => {
+            countdownWarnInput.setCustomValidity("");
+          });
+          countdownWarnInput.addEventListener("change", () => {
+            applyCountdownThresholdsFromInputs();
+          });
+          countdownWarnInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              applyCountdownThresholdsFromInputs();
+            }
+          });
+        }
+        if (countdownDangerInput) {
+          countdownDangerInput.addEventListener("input", () => {
+            countdownDangerInput.setCustomValidity("");
+          });
+          countdownDangerInput.addEventListener("change", () => {
+            applyCountdownThresholdsFromInputs();
+          });
+          countdownDangerInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              applyCountdownThresholdsFromInputs();
+            }
+          });
+        }
+        if (countdownStartBtn) {
+          countdownStartBtn.addEventListener("click", () => {
+            startCountdownFromInput();
+          });
+        }
+        if (countdownStopBtn) {
+          countdownStopBtn.addEventListener("click", () => {
+            stopCountdown();
+          });
+        }
+        if (countdownClearBtn) {
+          countdownClearBtn.addEventListener("click", () => {
+            clearCountdown();
+          });
+        }
+
+        if (openPresenterBtn) {
+          openPresenterBtn.addEventListener("click", () => {
+            openPresenterWindow();
+          });
+        }
+        if (openSlideNavBtn) {
+          openSlideNavBtn.addEventListener("click", () => {
+            openSlideNavigator();
+          });
+        }
+        if (openThemeSettingsBtn) {
+          openThemeSettingsBtn.addEventListener("click", () => {
+            openThemeSettingsModal();
+          });
+        }
+        if (slideNavCloseBtn) {
+          slideNavCloseBtn.addEventListener("click", () => {
+            closeSlideNavigator();
+          });
+        }
+        if (slideNavModal) {
+          slideNavModal.addEventListener("click", (event) => {
+            if (event.target === slideNavModal) {
+              closeSlideNavigator();
+            }
+          });
+        }
+        if (themeSettingsCloseBtn) {
+          themeSettingsCloseBtn.addEventListener("click", () => {
+            closeThemeSettingsModal();
+          });
+        }
+        if (themeSettingsDoneBtn) {
+          themeSettingsDoneBtn.addEventListener("click", () => {
+            closeThemeSettingsModal();
+          });
+        }
+        if (themeSettingsResetBtn) {
+          themeSettingsResetBtn.addEventListener("click", () => {
+            resetThemeColors();
+          });
+        }
+        if (themeSettingsModal) {
+          themeSettingsModal.addEventListener("click", (event) => {
+            if (event.target === themeSettingsModal) {
+              closeThemeSettingsModal();
+            }
+          });
+        }
+        [
+          themeDeckBackgroundInput,
+          themeDeckGlowLeftInput,
+          themeDeckGlowRightInput,
+          themePresenterBackgroundInput,
+          themePresenterPanelInput,
+          themePresenterPendingOpacityInput
+        ].forEach((input) => {
+          if (!input) return;
+          input.addEventListener("input", () => {
+            applyThemeColorsFromInputs();
+          });
+        });
+        if (presenterScaleRange) {
+          presenterScaleRange.addEventListener("input", (event) => {
+            setPresenterScale(event.target.value);
+          });
+        }
+        if (presenterResetLayoutBtn) {
+          presenterResetLayoutBtn.addEventListener("click", () => {
+            resetPresenterLayout();
+          });
+        }
+        presenterPanelCloseButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            const panelName = button.getAttribute("data-close-panel");
+            if (!panelName) return;
+            setPresenterPanelVisibility(panelName, false);
+          });
+        });
+        if (countdownInput && !countdownInput.value.trim()) {
+          countdownInput.value = formatCountdown(COUNTDOWN_DEFAULT_SECONDS);
+        }
+        if (countdownWarnInput && !countdownWarnInput.value.trim()) {
+          countdownWarnInput.value = formatCountdown(countdownWarningSeconds);
+        }
+        if (countdownDangerInput && !countdownDangerInput.value.trim()) {
+          countdownDangerInput.value = formatCountdown(countdownDangerSeconds);
+        }
+        applyThemeColors(themeColors, { skipSave: true, skipBroadcast: true, syncInputs: true });
+        ensureCountdownTicker();
+        renderCountdownUi();
+        setPresenterScale(presenterScale, { skipSave: true, skipRender: true });
+        buildSlideNavigatorList();
+        if (nextBtn) nextBtn.addEventListener("click", next);
+        if (prevBtn) prevBtn.addEventListener("click", prev);
+        document.addEventListener("keydown", (e) => {
+          if (themeSettingsModal && !themeSettingsModal.hidden) {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              closeThemeSettingsModal();
+            }
+            return;
+          }
+          if (slideNavModal && !slideNavModal.hidden) {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              closeSlideNavigator();
+              return;
+            }
+            if (["ArrowDown", "PageDown"].includes(e.key)) {
+              e.preventDefault();
+              setSlideNavigatorSelection(slideNavSelectionIdx + 1, { focus: true });
+              return;
+            }
+            if (["ArrowUp", "PageUp"].includes(e.key)) {
+              e.preventDefault();
+              setSlideNavigatorSelection(slideNavSelectionIdx - 1, { focus: true });
+              return;
+            }
+            if (e.key === "Home") {
+              e.preventDefault();
+              setSlideNavigatorSelection(0, { focus: true });
+              return;
+            }
+            if (e.key === "End") {
+              e.preventDefault();
+              setSlideNavigatorSelection(total - 1, { focus: true });
+              return;
+            }
+            if (["Enter", " "].includes(e.key)) {
+              e.preventDefault();
+              jumpToSelectedSlide();
+              return;
+            }
+            if (["s", "S", "n", "N"].includes(e.key)) {
+              e.preventDefault();
+              closeSlideNavigator();
+              return;
+            }
+            return;
+          }
+          if (isTypingContext(e)) return;
+          if (["s", "S", "n", "N"].includes(e.key)) {
+            e.preventDefault();
+            toggleSlideNavigator();
+            return;
+          }
+          if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); next(); }
+          if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); prev(); }
+          if (e.key === "Escape") {
+            hideSettingsPanel();
+            closeThemeSettingsModal();
+            closeSlideNavigator();
+          }
+        });
+
+        if (isPresenterMode) {
+          document.body.classList.add("presenter-mode");
+          if (presenterShell) {
+            presenterShell.hidden = false;
+          }
+          hideSettingsPanel();
+          setPresenterPanelVisibility("current", presenterCurrentPane, { skipSave: true, skipRender: true });
+          setPresenterPanelVisibility("next", presenterNextPane, { skipSave: true, skipRender: true });
+          setPresenterPanelVisibility("notes", presenterNotesPane, { skipSave: true, skipRender: true });
+          try {
+            const lastMessage = JSON.parse(localStorage.getItem(STORAGE_STATE_KEY) || "{}");
+            if (lastMessage.state) {
+              applyIncomingState(lastMessage.state);
+            }
+          } catch (e) {
+            // Ignore parse failures.
+          }
+          broadcast("request-state");
+        } else if (presenterShell) {
+          presenterShell.hidden = true;
+          document.body.classList.remove(
+            "presenter-panel-hidden-current",
+            "presenter-panel-hidden-next",
+            "presenter-panel-hidden-notes"
+          );
+        }
+
+        render({ broadcastState: !isPresenterMode });
+      })();
+    </script>
+  </body>
+</html>

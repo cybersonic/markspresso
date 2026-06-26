@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }} · Markspresso</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.65; }
+      .container { max-width: 980px; margin: 0 auto; padding: 1rem; }
+      .layout { display: grid; grid-template-columns: 1fr 280px; gap: 2rem; }
+      .post-content pre { overflow: auto; }
+      .muted { opacity: 0.8; font-size: 0.95rem; }
+      @media (max-width: 900px) {
+        .layout { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    {{ include "partials/header.html" }}
+    <main class="container layout">
+      <article>
+        <h1>{{ title }}</h1>
+        {{#if date}}<p class="muted">{{ date }}</p>{{/if}}
+        <div class="post-content">{{ content }}</div>
+      </article>
+      <aside>
+        <h2>Recent posts</h2>
+        {{ posts_list }}
+      </aside>
+    </main>
+    {{ include "partials/footer.html" }}
+    {{ markspressoScripts }}
+  </body>
+</html>

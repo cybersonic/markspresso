@@ -3,6 +3,9 @@
 All notable changes to Markspresso are documented in this file.
 
 ## Unreleased
+- Add new `presentation` theme pack for slide-style decks with presenter mode, speaker notes, and keyboard navigation
+- Add refreshed marketing/homepage content blocks and supporting CSS utilities (`proof-strip`, comparison cards, theme chips)
+- Speed up dev auto-reload polling in `markspresso-refresh.js` (1000ms → 500ms)
 - Add consolidated `theme` command options (`--list`, `--name`, `--build`, `--preview`, `--previewOutDir`) and keep backward-compatible `previewtheme` / `previewallthemes` aliases
 - Update README and docs for current CLI flags (`outDir`, `dev`), docs pagination tokens, PDF configuration, and theme workflow examples
 - Fix docs search input example to use `markspresso-search-input`
