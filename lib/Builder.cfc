@@ -208,10 +208,10 @@ component {
         var config  = variables.configService.load(rootDir);
 
         // Resolve paths (CLI args override config.paths)
-        var contentDir = rootDir & "/" & (len(src) ? src : config.paths.content);
-        var outputDir  = rootDir & "/" & (len(outDir) ? outDir : config.paths.output);
-        var layoutsDir = rootDir & "/" & config.paths.layouts;
-        var assetsDir  = rootDir & "/" & config.paths.assets;
+        var contentDir = normalizeDirPath(rootDir & "/" & (len(src) ? src : config.paths.content));
+        var outputDir  = normalizeDirPath(rootDir & "/" & (len(outDir) ? outDir : config.paths.output));
+        var layoutsDir = normalizeDirPath(rootDir & "/" & config.paths.layouts);
+        var assetsDir  = normalizeDirPath(rootDir & "/" & config.paths.assets);
         var themeContext = resolveThemeContext(config = config, siteRoot = rootDir);
         var themeLayoutsDir = themeContext.layoutsDir;
         var themeAssetsDir  = themeContext.assetsDir;
@@ -263,7 +263,7 @@ component {
                 continue;
             }
 
-            var scanRel       = replace(mid(scanPath, len(contentDir) + 2), "\\", "/", "all");
+            var scanRel       = relativePathFromRoot(scanPath, contentDir);
             var partsCount    = listLen(scanRel, "/");
             var scanRelDir    = (partsCount GT 1 ? listDeleteAt(scanRel, partsCount, "/") : "");
             var scanRelDirKey = lcase(scanRelDir);
@@ -277,7 +277,7 @@ component {
                 continue; // skipped (likely draft)
             }
 
-            var relPath = replace(mid(filePath, len(contentDir) + 2), "\\", "/", "all");
+            var relPath = relativePathFromRoot(filePath, contentDir);
 
             // Treat README.md as index.md when there is no explicit index.md in that folder
             var fileNameLower = lcase(getFileFromPath(filePath));
@@ -697,10 +697,10 @@ component {
         var rootDir = siteRoot();
         var config  = variables.configService.load(rootDir);
 
-        var contentDir = rootDir & "/" & config.paths.content;
-        var layoutsDir = rootDir & "/" & config.paths.layouts;
-        var assetsDir  = rootDir & "/" & config.paths.assets;
-        var outputDir  = rootDir & "/" & config.paths.output;
+        var contentDir = normalizeDirPath(rootDir & "/" & config.paths.content);
+        var layoutsDir = normalizeDirPath(rootDir & "/" & config.paths.layouts);
+        var assetsDir  = normalizeDirPath(rootDir & "/" & config.paths.assets);
+        var outputDir  = normalizeDirPath(rootDir & "/" & config.paths.output);
 
         out("Watching for changes in:");
         out("  content: " & contentDir);
@@ -751,7 +751,7 @@ component {
                 }
 
                 for (var changedPath in changedContent) {
-                    var relPath = replace(mid(changedPath, len(contentDir) + 2), "\\", "/", "all");
+                    var relPath = relativePathFromRoot(changedPath, contentDir);
                     out("Content change detected: " & relPath & " – rebuilding...");
                     buildSite(onlyRelPath = relPath, dev=arguments.dev);
                     if(dev){
@@ -835,7 +835,7 @@ component {
         
         var rootDir = siteRoot();
         var config  = variables.configService.load(rootDir);
-        var contentDir = rootDir & "/" & config.paths.content;
+        var contentDir = normalizeDirPath(rootDir & "/" & config.paths.content);
         
         // Determine collection config
         var collectionConfig = {};
@@ -937,8 +937,7 @@ component {
     public string function getUrlForContent(string relContentPath, boolean pathOnly = false) {
         var rootDir = siteRoot();
         var config  = variables.configService.load(rootDir);
-
-        var contentDir = rootDir & "/" & config.paths.content;
+        var contentDir = normalizeDirPath(rootDir & "/" & config.paths.content);
         relContentPath = replace(relContentPath, "\\", "/", "all");
         var filePath   = contentDir & "/" & relContentPath;
 
@@ -1293,6 +1292,39 @@ component {
         return arrayToList(cleanedParts, "/");
     }
 
+    /**
+     * Normalize directory-style paths for consistent comparisons.
+     * Converts backslashes to forward slashes and trims trailing slashes.
+     */
+    private string function normalizeDirPath(string path) {
+        var normalized = replace(arguments.path ?: "", "\\", "/", "all");
+
+        while (len(normalized) GT 1 and right(normalized, 1) == "/") {
+            normalized = left(normalized, len(normalized) - 1);
+        }
+
+        return normalized;
+    }
+
+    /**
+     * Compute fullPath relative to rootPath using normalized separators.
+     * Handles rootPath values with or without trailing slashes.
+     */
+    private string function relativePathFromRoot(string fullPath, string rootPath) {
+        var normalizedFull = replace(arguments.fullPath ?: "", "\\", "/", "all");
+        var normalizedRoot = normalizeDirPath(arguments.rootPath ?: "");
+
+        if (!len(normalizedRoot)) {
+            return normalizedFull;
+        }
+
+        if (left(normalizedFull, len(normalizedRoot)) == normalizedRoot) {
+            return mid(normalizedFull, len(normalizedRoot) + 2);
+        }
+
+        return normalizedFull;
+    }
+
     private void function out(any message) {
         if (!isNull(variables.outputCallback)) {
             variables.outputCallback(message);
@@ -1334,7 +1366,7 @@ component {
             }
         }
 
-        var outputDir  = rootDir & "/" & config.paths.output;
+        var outputDir  = normalizeDirPath(rootDir & "/" & config.paths.output);
         var prettyUrls = config.build.prettyUrls;
 
         var canonicalUrl = computeCanonicalUrl(

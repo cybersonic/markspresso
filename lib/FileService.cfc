@@ -42,19 +42,21 @@ component {
      * Copy all files from one directory to another recursively.
      */
     public void function copyAssets(string fromDir, string toDir) {
-        if (!directoryExists(fromDir)) {
+        var normalizedFromDir = normalizeDirPath(fromDir);
+        var normalizedToDir   = normalizeDirPath(toDir);
+        if (!directoryExists(normalizedFromDir)) {
             return;
         }
 
-        var items = directoryList(fromDir, true, "path");
+        var items = directoryList(normalizedFromDir, true, "path");
 
         for (var p in items) {
             if (directoryExists(p)) {
                 continue;
             }
 
-            var rel  = replace(mid(p, len(fromDir) + 2), "\\", "/", "all");
-            var dest = toDir & "/" & rel;
+            var rel  = relativePathFromRoot(p, normalizedFromDir);
+            var dest = normalizedToDir & "/" & rel;
             ensureDir(getDirectoryFromPath(dest));
             fileCopy(p, dest);
         }
@@ -128,6 +130,31 @@ component {
     }
 
     // --- Private Helpers ---
+
+    private string function normalizeDirPath(string path) {
+        var normalized = replace(arguments.path ?: "", "\\", "/", "all");
+
+        while (len(normalized) GT 1 and right(normalized, 1) == "/") {
+            normalized = left(normalized, len(normalized) - 1);
+        }
+
+        return normalized;
+    }
+
+    private string function relativePathFromRoot(string fullPath, string rootPath) {
+        var normalizedFull = replace(arguments.fullPath ?: "", "\\", "/", "all");
+        var normalizedRoot = normalizeDirPath(arguments.rootPath ?: "");
+
+        if (!len(normalizedRoot)) {
+            return normalizedFull;
+        }
+
+        if (left(normalizedFull, len(normalizedRoot)) == normalizedRoot) {
+            return mid(normalizedFull, len(normalizedRoot) + 2);
+        }
+
+        return normalizedFull;
+    }
 
     private boolean function isPathUnder(string childPath, string rootPath) {
         if (!len(rootPath) or !len(childPath)) {
