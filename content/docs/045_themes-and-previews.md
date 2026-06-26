@@ -17,6 +17,7 @@ Set `theme` in `markspresso.json`:
 }
 ```
 
+
 Then build:
 
 ```bash
@@ -81,15 +82,21 @@ Current built-in theme set includes:
 List available themes at any time:
 
 ```bash
-lucli markspresso previewtheme build=false
+lucli markspresso theme
 ```
 
-### Previewing a single theme quickly
-
-Use `previewtheme`:
+Explicit list flag:
 
 ```bash
-lucli markspresso previewtheme theme=retro-wave
+lucli markspresso theme --list
+```
+
+### Selecting a theme quickly
+
+Use `theme`:
+
+```bash
+lucli markspresso theme --name=retro-wave
 ```
 
 This updates `markspresso.json` and (by default) builds.
@@ -97,15 +104,21 @@ This updates `markspresso.json` and (by default) builds.
 To switch without building:
 
 ```bash
-lucli markspresso previewtheme theme=retro-wave build=false
+lucli markspresso theme --name=retro-wave --build=false
+```
+
+Backward-compatible alias:
+
+```bash
+lucli markspresso previewtheme theme=retro-wave
 ```
 
 ### Generating side-by-side previews for all themes
 
-Use `previewallthemes`:
+Use `theme --preview`:
 
 ```bash
-lucli markspresso previewallthemes
+lucli markspresso theme --preview
 ```
 
 This will:
@@ -119,6 +132,12 @@ Open:
 - `/_previews/index.html` from your static server
 
 You can change the output base directory:
+
+```bash
+lucli markspresso theme --preview --previewOutDir=docs/_theme-previews
+```
+
+Backward-compatible alias:
 
 ```bash
 lucli markspresso previewallthemes baseOutDir=docs/_theme-previews

@@ -3,6 +3,9 @@
 All notable changes to Markspresso are documented in this file.
 
 ## Unreleased
+- Add consolidated `theme` command options (`--list`, `--name`, `--build`, `--preview`, `--previewOutDir`) and keep backward-compatible `previewtheme` / `previewallthemes` aliases
+- Update README and docs for current CLI flags (`outDir`, `dev`), docs pagination tokens, PDF configuration, and theme workflow examples
+- Fix docs search input example to use `markspresso-search-input`
 - Add theme resolution support with `theme` config key and site/module theme lookup fallback
 - Add built-in theme packs: `default`, `bootstrap`, `bulma`, `tailwind`, `pico`, `sakura`, `simple-css`, `terminal`, `css-98`, and `retro-wave`
 - Add `previewtheme` command to list/switch themes and optionally build

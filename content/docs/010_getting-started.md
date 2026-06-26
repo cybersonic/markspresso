@@ -72,9 +72,10 @@ By default this will:
 Useful flags:
 
 - `--src=content` – override the content directory
-- `--out=public` – override the output directory
+- `--outDir=public` – override the output directory
 - `--clean` – delete the output directory before building
 - `--drafts` – include content marked as `draft: true` in front matter
+- `--dev` – inject dev auto-reload script support
 
 ### 3. Serve the built site
 
@@ -85,12 +86,6 @@ markspresso serve
 
 # or via LuCLI
 lucli markspresso serve
-```
-
-If LuCLI reports an existing stopped server instance, replace it:
-
-```bash
-lucli markspresso serve --force
 ```
 
 ### 4. Watch for changes
@@ -121,3 +116,4 @@ Once you have your first build working, continue with:
 - **Content & front matter** – how to attach metadata to documents
 - **Layouts & partials** – customizing HTML output
 - **Posts & pages** – using Markspresso as a lightweight blog engine
+- **PDF and URL utilities** – generating documentation PDFs and resolving canonical URLs from content files

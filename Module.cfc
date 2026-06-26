@@ -10,8 +10,7 @@ component extends="modules.BaseModule" {
      *   lucli markspresso new
      *   lucli markspresso pdf
      *   lucli markspresso geturl
-     *   lucli markspresso previewtheme
-     *   lucli markspresso previewallthemes
+     *   lucli markspresso theme
      */
 
     function init(
@@ -72,8 +71,7 @@ component extends="modules.BaseModule" {
         out("  #fullCommand# new <type>    ## create new content (post, page, or configured collection)");
         out("  #fullCommand# pdf           ## generate PDF from docs collection");
         out("  #fullCommand# geturl        ## resolve the URL for a content file");
-        out("  #fullCommand# previewtheme  ## switch theme in markspresso.json and optionally build");
-        out("  #fullCommand# previewallthemes ## build all themes into comparison previews");
+        out("  #fullCommand# theme         ## manage themes (--list, --name=<theme>, --preview)");
         return;
     }
 
@@ -213,12 +211,25 @@ component extends="modules.BaseModule" {
     }
 
     /**
-     * lucli markspresso previewtheme [theme=retro-wave] [build=true]
+     * lucli markspresso theme [--list] [--name=retro-wave] [--build=true] [--preview]
      *
-     * Updates markspresso.json with the selected theme. If theme is empty,
-     * prints all available themes from site + module theme directories.
+     * Theme command entrypoint:
+     * - default / --list: list themes
+     * - --name=<theme> (or legacy theme=<theme>): set active theme
+     * - --preview: generate side-by-side previews for all themes
     */
-    public void function previewtheme(string theme = "", boolean build = true) {
+    public void function theme(
+        string name = "",
+        string theme = "",
+        boolean build = true,
+        boolean list = false,
+        boolean preview = false,
+        string previewOutDir = "docs/_previews"
+    ) {
+        if (arguments.preview) {
+            return this.previewallthemes(baseOutDir = arguments.previewOutDir);
+        }
+
         var siteRootPath = getSiteRoot();
         var configPath = siteRootPath & "/markspresso.json";
 
@@ -228,22 +239,8 @@ component extends="modules.BaseModule" {
         }
 
         var themes = listAvailableThemes(siteRootPath);
-        if (!len(trim(arguments.theme))) {
-            out("Available themes:");
-            for (var themeName in themes) {
-                out("  - " & themeName);
-            }
-            out("Usage: " & getFullCommand() & " previewtheme theme=<name> [build=true|false]");
-            return;
-        }
-
-        var selectedTheme = trim(arguments.theme);
-        if (!arrayContains(themes, selectedTheme)) {
-            out("Theme '" & selectedTheme & "' not found.");
-            out("Available themes:");
-            for (var themeName in themes) {
-                out("  - " & themeName);
-            }
+        if (!arrayLen(themes)) {
+            out("No themes found.");
             return;
         }
 
@@ -256,6 +253,32 @@ component extends="modules.BaseModule" {
             return;
         }
 
+        var activeTheme = trim("" & (structKeyExists(config, "theme") ? config.theme : "default"));
+        if (!len(activeTheme)) {
+            activeTheme = "default";
+        }
+
+        var requestedTheme = len(trim(arguments.name)) ? trim(arguments.name) : trim(arguments.theme);
+        if (arguments.list or !len(requestedTheme)) {
+            out("Available themes:");
+            for (var themeName in themes) {
+                var marker = lCase(themeName) == lCase(activeTheme) ? " (active)" : "";
+                out("  - " & themeName & marker);
+            }
+            out("Usage: " & getFullCommand() & " theme [--list] [--name=<theme>] [--build=true|false] [--preview] [--previewOutDir=docs/_previews]");
+            return;
+        }
+
+        var selectedTheme = requestedTheme;
+        if (!arrayFindNoCase(themes, selectedTheme)) {
+            out("Theme '" & selectedTheme & "' not found.");
+            out("Available themes:");
+            for (var themeName in themes) {
+                out("  - " & themeName);
+            }
+            return;
+        }
+
         config.theme = selectedTheme;
         fileWrite(configPath, serializeJson(var = config, compact = false), "UTF-8");
         out("Theme set to '" & selectedTheme & "' in markspresso.json");
@@ -263,6 +286,15 @@ component extends="modules.BaseModule" {
         if (arguments.build) {
             variables.builder.buildSite();
         }
+    }
+
+    /**
+     * lucli markspresso previewtheme [theme=retro-wave] [build=true]
+     *
+     * Backward-compatible alias for `theme`.
+    */
+    public void function previewtheme(string theme = "", boolean build = true) {
+        return this.theme(name = arguments.theme, build = arguments.build);
     }
 
     /**

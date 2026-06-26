@@ -11,8 +11,9 @@ Markspresso is a LuCLI module that turns a directory of Markdown files into a si
 
 Markspresso is distributed as a LuCLI module. Once it is available in your LuCLI environment, you run it via the `lucli` CLI; there is nothing to install in a project.
 
-``bash
+```bash
 lucli install markspresso url=https://github.com/cybersonic/markspresso.git
+```
 
 ## Quick start
 
@@ -116,12 +117,14 @@ Markspresso automatically generates navigation from your content directory struc
 ```json
 {
   "navigation": {
-    "rootPath": "docs"
+    "rootPath": "docs",
+    "pagination": true
   }
 }
 ```
 
 - `navigation.rootPath` – Only include files under this path in navigation (e.g., to exclude blog posts from the navigation tree).
+- `navigation.pagination` – Controls docs prev/next pagination tokens (`prev_url`, `prev_title`, `next_url`, `next_title`) when `rootPath` is set. Enabled by default unless explicitly set to `false`.
 
 Markspresso uses a numeric prefix convention to control ordering:
 
@@ -173,6 +176,38 @@ Behavior:
   - `og_image` / `twitter_image` (if missing, or always when `overrideOgImage: true`)
 - Per-page opt-out: set `social_image: false` in front matter.
 
+### PDF configuration
+
+Markspresso can generate documentation PDFs through `lucli markspresso pdf`.
+
+Example config:
+
+```json
+{
+  "pdf": {
+    "enabled": true,
+    "output": "docs.pdf",
+    "rootPath": "docs",
+    "title": "My Documentation",
+    "author": "Docs Team",
+    "pageSize": "A4",
+    "orientation": "portrait",
+    "tocEnabled": true,
+    "headerHtml": "<div>{{ title }} — {{ currentChapterTitle }}</div>",
+    "footerHtml": "<div>Page {{ currentSectionPage }} of {{ totalSectionPages }}</div>"
+  }
+}
+```
+
+Token support in `headerHtml` / `footerHtml` includes:
+- `{{ title }}`
+- `{{ author }}`
+- `{{ currentChapterTitle }}`
+- `{{ currentPage }}`
+- `{{ totalPages }}`
+- `{{ currentSectionPage }}`
+- `{{ totalSectionPages }}`
+
 ## CLI Reference
 
 All commands are executed from the site root (where `markspresso.json` lives).
@@ -198,13 +233,14 @@ lucli markspresso create [name="My Site"] [baseUrl=http://localhost:3456] [force
 Builds the site by rendering Markdown under `content/` to HTML under `public/`.
 
 ```bash
-lucli markspresso build [src=content] [out=public] [clean] [drafts]
+lucli markspresso build [src=content] [outDir=public] [clean] [drafts] [dev]
 ```
 
 - `src` – content directory (relative to site root). Defaults to `content` or `paths.content` in `markspresso.json`.
-- `out` – output directory. Defaults to `public` or `paths.output`.
+- `outDir` – output directory. Defaults to `public` or `paths.output`.
 - `clean` – delete the output directory before building.
 - `drafts` – include content marked `draft: true` in front matter.
+- `dev` – enable dev-mode auto-reload script injection (`/js/markspresso-refresh.js`).
 
 Notes on output paths:
 
@@ -217,13 +253,75 @@ Notes on output paths:
 Watches for changes to content and layout files and automatically rebuilds the site.
 
 ```bash
-lucli markspresso watch [numberOfSeconds=1]
+lucli markspresso watch [numberOfSeconds=1] [dev]
 ```
 
 - `numberOfSeconds` – interval in seconds to check for file changes (default is 1 second).
+- `dev` – emit live-reload markers (`__markspresso_reload.json`) and inject the reload script.
 
 This command monitors your `content/`, `layouts/`, and `assets/` directories and automatically runs a rebuild whenever changes are detected. Perfect for development workflows.
 
+### `lucli markspresso serve`
+
+Starts a local HTTP server via LuCLI.
+
+```bash
+lucli markspresso serve [port=3456]
+```
+
+- `port` – HTTP port to run the local server on.
+
+### `lucli markspresso geturl`
+
+Resolves the canonical URL for a content file relative to your configured content root.
+
+```bash
+lucli markspresso geturl content=posts/2025-12-30-my-post.md [pathOnly=true]
+```
+
+- `content` – relative path under `paths.content` to a markdown file.
+- `pathOnly` – when `true`, returns just the canonical path (for example `/posts/my-post/`) instead of `baseUrl + path`.
+
+### `lucli markspresso pdf`
+
+Builds a PDF from docs content (excluding posts by default).
+
+```bash
+lucli markspresso pdf [rootPath=docs] [outFile=docs.pdf] [drafts] [toc=true]
+```
+
+- `rootPath` – subdirectory under `paths.content` to include (defaults to `pdf.rootPath` or `docs`).
+- `outFile` – output PDF filename/path under the site root.
+- `drafts` – include draft docs.
+- `toc` – include table of contents.
+
+### `lucli markspresso theme`
+
+Lists or applies themes, and can generate preview comparisons.
+
+```bash
+lucli markspresso theme [--list] [--name=retro-wave] [--build=true|false] [--preview] [--previewOutDir=docs/_previews]
+```
+
+Examples:
+
+```bash
+# List themes
+lucli markspresso theme --list
+
+# Set active theme without building
+lucli markspresso theme --name=retro-wave --build=false
+
+# Build side-by-side previews for all themes
+lucli markspresso theme --preview --previewOutDir=docs/_previews
+```
+
+Backward-compatible aliases:
+
+```bash
+lucli markspresso previewtheme theme=retro-wave build=false
+lucli markspresso previewallthemes baseOutDir=docs/_previews
+```
 
 ### `lucli markspresso new`
 
@@ -273,11 +371,11 @@ You can then open `public/index.html` in a browser or point a simple HTTP server
 Each Markdown file may start with a YAML-like front matter block:
 
 ```markdown
--
+---
 title: My page
 layout: page
 draft: false
--
+---
 
 # Heading
 

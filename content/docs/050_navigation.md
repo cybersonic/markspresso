@@ -76,6 +76,45 @@ If you only want navigation for a subset of your content (for example, everythin
 
 With this setting, only documents whose `relPath` starts with `docs/` contribute to navigation, and the `docs/` prefix is removed when computing section names.
 
+### Docs prev/next pagination tokens
+
+When `navigation.rootPath` is configured, Markspresso also computes reading-order pagination tokens for docs pages:
+
+- `prev_url`
+- `prev_title`
+- `next_url`
+- `next_title`
+
+These are injected into layout data and can be used directly in templates:
+
+```html
+<nav class="docs-pagination">
+  {{#if prev_url}}
+  <a href="{{ prev_url }}">← {{ prev_title }}</a>
+  {{/if}}
+  {{#if next_url}}
+  <a href="{{ next_url }}">{{ next_title }} →</a>
+  {{/if}}
+</nav>
+```
+
+Pagination behavior:
+
+- Enabled by default when `navigation.rootPath` is set.
+- Can be disabled with `navigation.pagination: false`.
+- Orders pages by numeric filename/folder prefixes (for example `010_`, `020_`).
+
+Example config:
+
+```json
+{
+  "navigation": {
+    "rootPath": "docs",
+    "pagination": true
+  }
+}
+```
+
 ### Active item highlighting
 
 The navigation HTML includes an `active` class on the `<li>` corresponding to the current page. You can target this in CSS to highlight the current location.

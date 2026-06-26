@@ -28,7 +28,7 @@ lucli server start --disable-lucee ./public
 or, if your `markspresso.json` is configured to output into `docs/` (like this repository):
 
 ```bash
-lucliserver start --disable-lucee ./docs
+lucli server start --disable-lucee ./docs
 ```
 
 Then open the printed URL (usually `http://localhost:8888/` or similar) in your browser.
@@ -49,3 +49,21 @@ A common workflow when writing docs or posts is:
 1. Run `lucli markspresso watch` in one terminal to rebuild on changes.
 2. Run `lucli server start --disable-lucee ./public` (or `./docs`) in another terminal.
 3. Edit Markdown/layouts and refresh your browser to see the latest build.
+
+### Dev-mode auto reload
+
+Markspresso also supports a dev mode for automatic browser reload behavior:
+
+```bash
+# One-off dev build with reload script injection
+lucli markspresso build --clean --dev
+
+# Watch mode with reload marker updates
+lucli markspresso watch --dev
+```
+
+When `--dev` is enabled:
+
+- Markspresso injects `/js/markspresso-refresh.js` into generated pages.
+- Watch builds update `__markspresso_reload.json` in the output directory.
+- The refresh script can poll this marker and reload the page automatically.

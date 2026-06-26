@@ -151,7 +151,7 @@ To add a search box to an HTML layout, include the expected markup and the `{{ m
     <header>
       <!-- other header content -->
       <form class="search">
-        <input id="markspresso-input" type="search" placeholder="Search docs…">
+        <input id="markspresso-search-input" type="search" placeholder="Search docs…">
       </form>
     </header>
 
