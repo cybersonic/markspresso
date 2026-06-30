@@ -1186,6 +1186,47 @@ component {
         return "";
     }
 
+    /**
+     * Resolve a physical template path to a Lucee includeable template path.
+     * Project-root files are exposed via a runtime mapping so includes resolve
+     * correctly regardless of the current page context root.
+     */
+    private string function resolveIncludeTemplatePath(required string filePath) {
+        var normalizedFile = replace(arguments.filePath ?: "", "\\", "/", "all");
+        var rootDir        = normalizeDirPath(siteRoot());
+        var mappingKey     = "/__markspresso_site";
+
+        if (len(rootDir) and left(normalizedFile, len(rootDir)) == rootDir) {
+            var relPath = mid(normalizedFile, len(rootDir) + 1);
+            if (len(relPath) and left(relPath, 1) != "/") {
+                relPath = "/" & relPath;
+            }
+            ensureSiteIncludeMapping(rootDir = rootDir, mappingKey = mappingKey);
+            return mappingKey & relPath;
+        }
+
+        return contractPath(normalizedFile);
+    }
+
+    /**
+     * Ensure/update a runtime mapping used for including project templates.
+     */
+    private void function ensureSiteIncludeMapping(required string rootDir, required string mappingKey) {
+        var appSettings = getApplicationSettings();
+        var mappings = (structKeyExists(appSettings, "mappings") and isStruct(appSettings.mappings))
+            ? duplicate(appSettings.mappings)
+            : {};
+
+        var mappedPath = structKeyExists(mappings, arguments.mappingKey)
+            ? normalizeDirPath(mappings[arguments.mappingKey])
+            : "";
+
+        if (mappedPath != normalizeDirPath(arguments.rootDir)) {
+            mappings[arguments.mappingKey] = arguments.rootDir;
+            application action="update" mappings=mappings;
+        }
+    }
+
     private struct function resolveLayoutPath(required string layoutName, required array layoutRoots) {
         for (var root in layoutRoots) {
             var cfmPath = root & "/" & layoutName & ".cfm";
@@ -1268,7 +1309,7 @@ component {
         }
 
         savecontent variable="html" {
-            include template="#contractPath(overrideFilePath)#";
+            include template=resolveIncludeTemplatePath(overrideFilePath);
         }
 
         return html;
@@ -1840,7 +1881,7 @@ component {
 
         if (len(overrideFilePath)) {
             savecontent variable="html" {
-                include template="#contractPath(overrideFilePath)#";
+                include template=resolveIncludeTemplatePath(overrideFilePath);
             }
             return html;
         }
@@ -1883,7 +1924,7 @@ component {
 
         if (len(overrideFilePath)) {
             savecontent variable="html" {
-                include template="#contractPath(overrideFilePath)#";
+                include template=resolveIncludeTemplatePath(overrideFilePath);
             }
             return html;
         }
