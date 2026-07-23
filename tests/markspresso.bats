@@ -84,6 +84,14 @@ load 'test_helper'
     file_exists "public/2025/02/12/draft-post.html"
 }
 
+@test "drafts are included with set.build.includeDrafts=true override" {
+    run lucli markspresso build set.build.includeDrafts=true
+    [ "$status" -eq 0 ]
+
+    # Draft post SHOULD exist due to runtime config override
+    file_exists "public/2025/02/12/draft-post.html"
+}
+
 # =============================================================================
 # Feed Tests
 # =============================================================================
@@ -131,6 +139,28 @@ load 'test_helper'
     
     file_contains "public/posts/feed.xml" "First Post"
     file_contains "public/posts/feed.xml" "Second Post"
+}
+
+@test "set.baseUrl override is reflected in generated feeds" {
+    run lucli markspresso build set.baseUrl=https://docs.override.example
+    [ "$status" -eq 0 ]
+
+    file_contains "public/posts/feed.xml" "https://docs.override.example"
+    file_contains "public/posts/atom.xml" "https://docs.override.example"
+}
+
+@test "set.baseUrl override with subpath prefixes generated canonical links in HTML" {
+    run lucli markspresso build set.baseUrl=https://docs.override.example/frontend/
+    [ "$status" -eq 0 ]
+    file_contains "public/index.html" 'href="/frontend/2025/02/10/second-post.html"'
+}
+
+@test "set.baseUrl override with subpath does not duplicate feed path prefixes" {
+    run lucli markspresso build set.baseUrl=https://docs.override.example/frontend/
+    [ "$status" -eq 0 ]
+
+    file_contains "public/posts/feed.xml" "https://docs.override.example/frontend/"
+    ! file_contains "public/posts/feed.xml" "/frontend/frontend/"
 }
 
 @test "feeds do not contain draft posts" {

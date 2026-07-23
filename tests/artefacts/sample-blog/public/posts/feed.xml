@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Test Blog Posts</title>
+    <link>http://localhost:8080/posts/</link>
+    <description>Latest posts from Test Blog</description>
+    <language>en-us</language>
+    <lastBuildDate>Wed, 22 Jul 2026 18:23:08 GMT</lastBuildDate>
+    <atom:link href="http://localhost:8080/posts/feed.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Second Post</title>
+      <link>http://localhost:8080/2025/02/10/second-post.html</link>
+      <guid isPermaLink="true">http://localhost:8080/2025/02/10/second-post.html</guid>
+      <pubDate>Mon, 10 Feb 2025 00:00:00 GMT</pubDate>
+      <description>This is the second test post</description>
+    </item>
+    <item>
+      <title>First Post</title>
+      <link>http://localhost:8080/2025/01/15/first-post.html</link>
+      <guid isPermaLink="true">http://localhost:8080/2025/01/15/first-post.html</guid>
+      <pubDate>Wed, 15 Jan 2025 00:00:00 GMT</pubDate>
+      <description>This is the first test post</description>
+    </item>
+  </channel>
+</rss>

@@ -11,6 +11,86 @@ component {
     }
 
     /**
+     * Build an absolute URL using baseUrl and a canonical path.
+     * Handles both canonical paths that already include baseUrl's path prefix
+     * and legacy canonical paths that do not.
+     */
+    private string function buildAbsoluteUrl(required string baseUrl, required string pathOrUrl) {
+        var target = trim(arguments.pathOrUrl ?: "");
+        if (!len(target)) {
+            return target;
+        }
+
+        // Already absolute (http://, https://, //cdn.example.com)
+        if (reFindNoCase("^(?:[a-z][a-z0-9+.-]*:)?//", target)) {
+            return target;
+        }
+
+        var rawBase = trim(arguments.baseUrl ?: "");
+        if (!len(rawBase)) {
+            return target;
+        }
+
+        var origin = rawBase;
+        var basePath = "";
+        try {
+            var uri = createObject("java", "java.net.URI").init(rawBase);
+            if (len("" & (uri.getScheme() ?: "")) and len("" & (uri.getHost() ?: ""))) {
+                origin = uri.getScheme() & "://" & uri.getHost();
+                if (uri.getPort() GT 0) {
+                    origin &= ":" & uri.getPort();
+                }
+            }
+            basePath = normalizePath("" & (uri.getPath() ?: ""));
+        }
+        catch (any e) {
+            // Best-effort fallback when baseUrl isn't a full URI
+            origin = rawBase;
+            basePath = "";
+        }
+
+        // Normalize origin
+        while (len(origin) and right(origin, 1) == "/") {
+            origin = left(origin, len(origin) - 1);
+        }
+
+        var pathValue = target;
+        if (left(pathValue, 1) != "/") {
+            pathValue = "/" & pathValue;
+        }
+
+        if (len(basePath)) {
+            if (!(pathValue == basePath or left(pathValue, len(basePath) + 1) == basePath & "/")) {
+                if (pathValue == "/") {
+                    pathValue = basePath & "/";
+                } else {
+                    pathValue = basePath & pathValue;
+                }
+            }
+        }
+
+        return origin & pathValue;
+    }
+
+    /**
+     * Normalize URL paths to "/foo/bar" form, with no trailing slash unless root.
+     */
+    private string function normalizePath(required string pathValue) {
+        var p = replace(arguments.pathValue ?: "", "\\", "/", "all");
+        p = trim(p);
+        if (!len(p) or p == "/") {
+            return "";
+        }
+        if (left(p, 1) != "/") {
+            p = "/" & p;
+        }
+        while (len(p) GT 1 and right(p, 1) == "/") {
+            p = left(p, len(p) - 1);
+        }
+        return p;
+    }
+
+    /**
      * Generate feeds for a collection.
      *
      * @param config        Full site config
@@ -115,10 +195,7 @@ component {
             var itemContent = structKeyExists(item, "content") ? item.content : "";
 
             // Build full URL
-            var fullUrl = itemUrl;
-            if (len(itemUrl) and left(itemUrl, 1) == "/") {
-                fullUrl = baseUrl & itemUrl;
-            }
+            var fullUrl = buildAbsoluteUrl(baseUrl = baseUrl, pathOrUrl = itemUrl);
 
             xml &= '    <item>' & chr(10);
             xml &= '      <title>' & xmlFormat(itemTitle) & '</title>' & chr(10);

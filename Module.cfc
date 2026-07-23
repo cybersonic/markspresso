@@ -107,15 +107,18 @@ component extends="modules.BaseModule" {
         boolean clean = false,
         boolean drafts = false,
         string onlyRelPath = "",
-        boolean dev = false
+        boolean dev = false,
+        struct set = {}
     ) {
+        var setOverrides = collectSetOverridesFromArguments(arguments);
         return variables.builder.buildSite(
             src         = src,
             outDir      = outDir,
             clean       = clean,
             drafts      = drafts,
             onlyRelPath = onlyRelPath,
-            dev         = dev
+            dev         = dev,
+            setOverrides = setOverrides
         );
     }
 
@@ -409,6 +412,108 @@ component extends="modules.BaseModule" {
         }
 
         return "lucli markspresso";
+    }
+
+    private struct function collectSetOverridesFromArguments(required struct buildArgs) {
+        var dotOverrides = {};
+        var explicitSetStruct = (
+            structKeyExists(arguments.buildArgs, "set")
+            and isStruct(arguments.buildArgs.set)
+        ) ? arguments.buildArgs.set : {};
+
+        for (var argKey in arguments.buildArgs) {
+            var normalizedKey = trim("" & argKey);
+            if (left(lCase(normalizedKey), 4) != "set.") {
+                continue;
+            }
+
+            var path = trim(mid(normalizedKey, 5));
+            if (!len(path)) {
+                continue;
+            }
+
+            applyNestedOverride(
+                target = dotOverrides,
+                path = path,
+                value = coerceCliValue(arguments.buildArgs[argKey])
+            );
+        }
+        if (structCount(explicitSetStruct)) {
+            return mergeNestedStructs(explicitSetStruct, dotOverrides);
+        }
+
+        return dotOverrides;
+    }
+
+    private void function applyNestedOverride(
+        required struct target,
+        required string path,
+        any value
+    ) {
+        var parts = listToArray(arguments.path, ".");
+        if (!arrayLen(parts)) {
+            return;
+        }
+
+        var cursor = arguments.target;
+        for (var i = 1; i < arrayLen(parts); i++) {
+            var key = trim(parts[i]);
+            if (!len(key)) {
+                continue;
+            }
+
+            if (!structKeyExists(cursor, key) or !isStruct(cursor[key])) {
+                cursor[key] = {};
+            }
+            cursor = cursor[key];
+        }
+
+        var leafKey = trim(parts[arrayLen(parts)]);
+        if (!len(leafKey)) {
+            return;
+        }
+        cursor[leafKey] = arguments.value;
+    }
+
+    private any function coerceCliValue(any rawValue) {
+        var s = trim("" & arguments.rawValue);
+        if (!len(s)) {
+            return s;
+        }
+
+        if (lCase(s) == "true") return true;
+        if (lCase(s) == "false") return false;
+        if (lCase(s) == "null") return javacast("null", "");
+        if (isNumeric(s)) return val(s);
+
+        var startsLikeJson = (
+            (left(s, 1) == "{" and right(s, 1) == "}") or
+            (left(s, 1) == "[" and right(s, 1) == "]")
+        );
+        if (startsLikeJson) {
+            try {
+                return deserializeJson(s);
+            }
+            catch (any e) {}
+        }
+
+        return s;
+    }
+
+    private struct function mergeNestedStructs(required struct baseStruct, required struct overrideStruct) {
+        var merged = duplicate(arguments.baseStruct);
+        for (var key in arguments.overrideStruct) {
+            var incoming = arguments.overrideStruct[key];
+            var existing = structKeyExists(merged, key) ? merged[key] : javacast("null", "");
+
+            if (isStruct(incoming) and !isNull(existing) and isStruct(existing)) {
+                merged[key] = mergeNestedStructs(existing, incoming);
+            } else {
+                merged[key] = incoming;
+            }
+        }
+
+        return merged;
     }
 
     private string function getSiteRoot() {

@@ -241,6 +241,17 @@ lucli markspresso build [src=content] [outDir=public] [clean] [drafts] [dev]
 - `clean` – delete the output directory before building.
 - `drafts` – include content marked `draft: true` in front matter.
 - `dev` – enable dev-mode auto-reload script injection (`/js/markspresso-refresh.js`).
+- `set.<path>=<value>` – override any `markspresso.json` setting for this build only (runtime, no file changes).
+
+Runtime override examples:
+
+```bash
+# Override base URL just for this build
+lucli markspresso build set.baseUrl=https://distrodocs.int.distrokid.com/frontend/
+
+# Override nested config value
+lucli markspresso build set.build.includeDrafts=true
+```
 
 Notes on output paths:
 

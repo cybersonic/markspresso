@@ -190,7 +190,8 @@ component {
         boolean clean = false,
         boolean drafts = false,
         string onlyRelPath = "",
-        boolean dev = false
+        boolean dev = false,
+        struct setOverrides = {}
     ) {
         var onlyRelPathLower = lcase(onlyRelPath);
         
@@ -206,6 +207,9 @@ component {
 
         var rootDir = siteRoot();
         var config  = variables.configService.load(rootDir);
+        if (structCount(setOverrides)) {
+            config = mergeConfigOverrides(config, setOverrides);
+        }
 
         // Resolve paths (CLI args override config.paths)
         var contentDir = normalizeDirPath(rootDir & "/" & (len(src) ? src : config.paths.content));
@@ -688,6 +692,27 @@ component {
         }
 
         return "Site Built";
+    }
+
+    /**
+     * Deep merge runtime override values into loaded config.
+     * Override values replace base values, except nested structs merge recursively.
+     */
+    private struct function mergeConfigOverrides(required struct baseConfig, required struct overrides) {
+        var merged = duplicate(arguments.baseConfig);
+
+        for (var key in arguments.overrides) {
+            var incoming = arguments.overrides[key];
+            var current = structKeyExists(merged, key) ? merged[key] : javacast("null", "");
+
+            if (isStruct(incoming) and !isNull(current) and isStruct(current)) {
+                merged[key] = mergeConfigOverrides(current, incoming);
+            } else {
+                merged[key] = incoming;
+            }
+        }
+
+        return merged;
     }
 
     /**
@@ -1418,12 +1443,95 @@ component {
             collectionName = collectionName,
             dateInfo       = dateInfo
         );
+        canonicalUrl = applyBasePathToCanonicalUrl(
+            canonicalUrl = canonicalUrl,
+            baseUrl      = (structKeyExists(config, "baseUrl") ? (config.baseUrl ?: "") : "")
+        );
 
         info.collectionName = collectionName;
         info.dateInfo       = dateInfo;
         info.canonicalUrl   = canonicalUrl;
 
         return info;
+    }
+
+    /**
+     * Prefix a canonical path with the path segment of baseUrl.
+     * Examples:
+     *   baseUrl=https://example.com/frontend/, canonical=/docs/foo/ -> /frontend/docs/foo/
+     *   baseUrl=https://example.com/, canonical=/docs/foo/ -> /docs/foo/
+     */
+    private string function applyBasePathToCanonicalUrl(required string canonicalUrl, string baseUrl = "") {
+        var canonical = trim(arguments.canonicalUrl ?: "");
+        if (!len(canonical)) {
+            return canonical;
+        }
+
+        // Ignore already-absolute URLs (defensive)
+        if (reFindNoCase("^(?:[a-z][a-z0-9+.-]*:)?//", canonical)) {
+            return canonical;
+        }
+
+        if (left(canonical, 1) != "/") {
+            canonical = "/" & canonical;
+        }
+
+        var basePath = extractBasePathFromBaseUrl(arguments.baseUrl ?: "");
+        if (!len(basePath)) {
+            return canonical;
+        }
+
+        if (canonical == "/") {
+            return basePath & "/";
+        }
+
+        if (canonical == basePath or left(canonical, len(basePath) + 1) == basePath & "/") {
+            return canonical;
+        }
+
+        return basePath & canonical;
+    }
+
+    /**
+     * Extract just the normalized path segment from baseUrl.
+     * Returns "" for root/base-only URLs and "/frontend" for subpath deploy URLs.
+     */
+    private string function extractBasePathFromBaseUrl(string baseUrl = "") {
+        var raw = trim(arguments.baseUrl ?: "");
+        if (!len(raw)) {
+            return "";
+        }
+
+        var pathOnly = raw;
+        try {
+            var uri = createObject("java", "java.net.URI").init(raw);
+            pathOnly = "" & (uri.getPath() ?: "");
+        }
+        catch (any e) {
+            // Fall back for plain path-ish baseUrl values
+            if (reFindNoCase("^[a-z][a-z0-9+.-]*://", raw)) {
+                return "";
+            }
+            var slashPos = find("/", raw);
+            pathOnly = slashPos ? mid(raw, slashPos, len(raw) - slashPos + 1) : raw;
+        }
+
+        pathOnly = replace(pathOnly, "\\", "/", "all");
+        pathOnly = trim(pathOnly);
+
+        if (!len(pathOnly) or pathOnly == "/") {
+            return "";
+        }
+
+        if (left(pathOnly, 1) != "/") {
+            pathOnly = "/" & pathOnly;
+        }
+
+        while (len(pathOnly) GT 1 and right(pathOnly, 1) == "/") {
+            pathOnly = left(pathOnly, len(pathOnly) - 1);
+        }
+
+        return pathOnly;
     }
 
     private string function findCollectionNameForRelPath(struct config, string relPath) {
