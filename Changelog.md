@@ -3,6 +3,7 @@
 All notable changes to Markspresso are documented in this file.
 
 ## Unreleased
+- Fix Markdown rendering classloading: load commonmark extensions via createObject("java", FQCN) and pin org.nibor.autolink transitive dependency (fixes AutolinkExtension not found in CI/Docker)
 - Fix relative path derivation in `Builder` and `FileService` so configured content/assets/output paths work correctly with or without trailing slashes
 - Add new `presentation` theme pack for slide-style decks with presenter mode, speaker notes, and keyboard navigation
 - Add refreshed marketing/homepage content blocks and supporting CSS utilities (`proof-strip`, comparison cards, theme chips)
